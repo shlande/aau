@@ -1,4 +1,4 @@
-package main
+package clawer
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestFindByKeywords(t *testing.T) {
-	FindByKeywords(context.Background(), "无职转生")
+	FindCollectionsByKeywords(context.Background(), "无职转生")
 }
 
 func TestParse(t *testing.T) {
@@ -20,7 +20,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	rcds, err := Parse(f)
+	rcds, err := parse(f)
 	if err != nil {
 		panic(err)
 	}
@@ -37,16 +37,16 @@ func TestParseTitle(t *testing.T) {
 	}{
 		{
 			Title: "[桜都字幕組] 無職轉生～到了異世界就拿出真本事～ / Mushoku Tensei Isekai Ittara Honki Dasu [11][1080p@60FPS][繁體內嵌]",
-			Want:  &Detail{Languages: []Language{GB, BIG}, Quality: P1080, Episode: 11, SubType: Internal},
+			Want:  &Detail{Language: GB | BIG, Quality: P1080, Episode: 11, SubType: Internal},
 		}, {
 			Title: "[NC-Raws] 無職轉生～到了異世界就拿出真本事～（僅限港澳台地區） / Mushoku Tensei - 11 [WEB-DL][1080p][AVC AAC][CHS_CHT_SRT][MKV]",
-			Want:  &Detail{Languages: []Language{GB, BIG}, Quality: P1080, Episode: 11, SubType: Internal},
+			Want:  &Detail{Language: GB | BIG, Quality: P1080, Episode: 11, SubType: Internal},
 		}, {
 			Title: "[爱恋\\u0026漫猫字幕组][1月新番][无职转生～到了异世界就拿出真本事～][Mushoku Tensei Isekai Ittara Honki Dasu][10][1080p][MP4][GB][简中]",
-			Want:  &Detail{Languages: []Language{GB}, Quality: P1080, Episode: 10, SubType: Internal},
+			Want:  &Detail{Language: GB, Quality: P1080, Episode: 10, SubType: Internal},
 		}, {
 			Title: "【悠哈璃羽字幕社】[無職轉生～到了異世界就拿出真本事～_Mushoku Tensei][08][x264 1080p][CHT]",
-			Want:  &Detail{Languages: []Language{GB}, Quality: P1080, Episode: 10, SubType: Internal},
+			Want:  &Detail{Language: GB, Quality: P1080, Episode: 10, SubType: Internal},
 		}, {
 			Title: "​[c.c動漫][1月新番][無職轉生～到了異世界就拿出真本事～][10][BIG5][1080P][MP4]",
 			Want:  nil,
@@ -59,7 +59,7 @@ func TestParseTitle(t *testing.T) {
 		},
 	}
 	for _, i := range input {
-		got := parseDetail(i.Title)
+		got := parseTitle(i.Title)
 		if !reflect.DeepEqual(got, i.Want) {
 			t.Errorf("want: %v , got : %v", i.Want, got)
 		}

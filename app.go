@@ -1,51 +1,16 @@
 package main
 
 import (
-	"context"
-	"time"
+	"github.com/shlande/dmhy-rss/clawer"
+	"github.com/shlande/dmhy-rss/core"
 )
 
-// Collection 包含了单个种类的所有record
-type Collection struct {
-	Name       string
-	Fansub     []string
-	LastUpdate *time.Time
-	Videos     []*Record
-}
-
-type Downloader interface {
-	Download(ctx context.Context, magnet string) error
-}
-
-type App interface {
-	// Add 添加一个监控
-	Add(name string) error
+// Server 对外界暴露对服务
+type Server interface {
+	// Search 添加一个监控
+	Search(keyword string) []*clawer.Collection
 	// Delete 删除监控
-	Delete(name string) error
+	Delete(id string) error
 	// List 获取当前所有的正在监听的内容
-	List() []string
-}
-
-type app struct {
-	// 保存所有的内容
-	name map[string][]*Record
-}
-
-func (a *app) Add(name string) error {
-	if _, has := a.name[name]; !has {
-		a.name[name] = make([]*Record, 0, 10)
-	}
-	return nil
-}
-
-func (a *app) Delete(name string) error {
-	panic("implement me")
-}
-
-func (a *app) List() []string {
-	panic("implement me")
-}
-
-func (a *app) sort([]Record) []*Collection {
-	return nil
+	List() []*core.Collection
 }

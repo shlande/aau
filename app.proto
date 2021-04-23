@@ -1,0 +1,24 @@
+syntax = "proto3";
+option go_package = ".;";
+
+service Server {
+  rpc Search(SearchRequest) returns (SearchResponse) {}
+}
+
+message SearchRequest {
+  string keyword = 1;
+}
+
+message SearchResponse {
+
+}
+
+message Collection {
+  string name =1 ;
+  repeated string fansub = 2;
+  int64 lastUpdate = 3;
+}
+
+message Videos {
+
+}
