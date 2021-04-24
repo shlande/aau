@@ -18,48 +18,75 @@ const (
 type Action uint8
 
 const (
-	FinishUpdate Action = iota
-	SkipUpdate
-	FinishDownload
-	CancelDownload
+	UpdateFinish Action = iota
+	UpdateFail
+	UpdateSkip
+	DownloadFinish
+	DownloadCancel
+	DownloadTimeout
+	Terminate
 )
 
 // Policy 负责控制更新策略
 type Policy struct {
 	Status
 	// 更新的日期
-	UpdateDay  time.Weekday
-	LastUpdate *time.Time
-	Logs       []Log
+	UpdateDay time.Weekday
+	Last      time.Time
+	Next      time.Time
+	Logs      []*Log `json:"_"`
 }
 
-// FinishUpdate 设置为完成更新
-func (p *Policy) FinishUpdate() {}
+// 计算下一次应该更新的时间
+func (p *Policy) nextUpdate() time.Time {
+	if time.Now().Weekday() < p.UpdateDay {
+		// 将时间快进到本周到这一天
+	}
+	// 否则就快进到下一周到这一条
+	return time.Time{}
+}
+
+// Updated 设置为完成更新
+func (p *Policy) Updated(msg string) {
+	p.addLog(UpdateFinish, msg)
+	p.Status = Download
+}
 
 // SkipUpdate 跳过本次更新
-func (p *Policy) SkipUpdate() {
-
+func (p *Policy) SkipUpdate(msg string) {
+	p.addLog(UpdateSkip, msg)
+	p.Next = p.nextUpdate()
+	p.Status = Wait
 }
 
-func (p *Policy) CancelDownload() {
-
+func (p *Policy) CancelDownload(msg string) {
+	p.addLog(DownloadCancel, msg)
+	p.Next = p.nextUpdate()
+	p.Status = Wait
 }
 
-func (p *Policy) FinishDownload() {
-
+// CheckTimeout 检查下载是否超时
+func (p *Policy) CheckTimeout() bool {
+	lastUpdate := p.Logs[len(p.Logs)-1].EmitTime
+	now := time.Now()
+	// 超过三天则标记超时
+	if p.Status == Download && lastUpdate.Add(time.Hour*24*3).Before(now) {
+		p.CheckUpdate()
+		p.addLog(DownloadTimeout, "")
+		return true
+	}
+	return false
 }
 
-func (p *Policy) Terminate() {
-
+func (p *Policy) FinishDownload(msg string) {
+	p.addLog(DownloadFinish, msg)
+	p.Next = p.nextUpdate()
+	p.Status = Wait
 }
 
-func (p *Policy) Log() []*Log {
-	return nil
-}
-
-// NextUpdate 下一次更新时间
-func (p *Policy) NextUpdate() *time.Time {
-	return &time.Time{}
+func (p *Policy) Terminate(msg string) {
+	p.addLog(Terminate, msg)
+	p.Status = Finish
 }
 
 // CheckUpdate 判断是否需要更新
@@ -68,20 +95,33 @@ func (p *Policy) CheckUpdate() bool {
 	if p.Status == Update {
 		return true
 	}
-	// 如果更新时间还是属于一周的范围内
-	//if
-	//p.LastUpdate.Weekday()
-	//if p.LastUpdate.Add(time.Hour * 24 * 7).Before(time.Now()) {
-	//
-	//}
+	if p.Status == Wait && p.Next.Before(time.Now()) {
+		p.Status = Update
+		return true
+	}
 	return false
 }
 
-func (p *Policy) TryUpdate() {
+func (p *Policy) UpdateFail(err error) {
+	p.addLog(UpdateFail, err.Error())
+	p.Next = p.Next.Add(time.Hour)
+	p.Status = Wait
+}
 
+func (p *Policy) Log() []*Log {
+	return p.Logs
+}
+
+func (p *Policy) addLog(action Action, msg string) {
+	p.Logs = append(p.Logs, &Log{
+		Action:   action,
+		EmitTime: time.Now(),
+		Message:  msg,
+	})
 }
 
 type Log struct {
 	Action
-	EmitTime *time.Time
+	EmitTime time.Time
+	Message  string
 }

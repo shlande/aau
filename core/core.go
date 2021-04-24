@@ -3,12 +3,14 @@ package core
 import (
 	"context"
 	"fmt"
+	iface "github.com/shlande/dmhy-rss"
 	"time"
 )
 
 // Core 核心逻辑处理未知
 type Core struct {
 	cls []*Collection
+	dw  iface.Downloader
 }
 
 func (c *Core) Run(ctx context.Context) {

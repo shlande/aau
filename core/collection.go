@@ -31,12 +31,16 @@ func (c *Collection) Update(ctx context.Context) error {
 		return err
 	}
 	if len(items) < 1 {
-		return errors.New("没有找到相关信息")
+		err = errors.New("没有找到相关信息")
+		c.UpdateFail(err)
+		return err
 	}
+	var msg string
 	if len(items) > 1 {
-		log.Println("找到多条信息，使用第一条")
-		c.Info.AddItem(items[0])
+		msg = "找到多条信息，使用第一条"
+		log.Println(msg)
 	}
 	c.Info.AddItem(items[0])
+	c.Updated(msg)
 	return err
 }
