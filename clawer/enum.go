@@ -39,7 +39,7 @@ func (s SubType) String() string {
 
 const (
 	GB Language = 1 << iota
-	BIG
+	BIG5
 	JP
 )
 
@@ -57,9 +57,9 @@ func (l Language) String() (name string) {
 
 var (
 	LanguageString = map[Language]string{
-		GB:  "简体",
-		BIG: "繁体",
-		JP:  "日语",
+		GB:   "简体",
+		BIG5: "繁体",
+		JP:   "日语",
 	}
 	QualityString = map[Quality]string{
 		P1080: "1080p",
