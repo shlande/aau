@@ -1,6 +1,9 @@
 package core
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 type Status uint8
 
@@ -26,6 +29,16 @@ const (
 	DownloadTimeout
 	Terminate
 )
+
+func NewPolicy(updateDay time.Weekday) *Policy {
+	plc := &Policy{
+		Status:    Wait,
+		UpdateDay: updateDay,
+		Last:      time.Now(),
+	}
+	plc.Next = plc.nextUpdate()
+	return plc
+}
 
 // Policy 负责控制更新策略
 type Policy struct {
@@ -71,11 +84,14 @@ func (p *Policy) CheckTimeout() bool {
 	now := time.Now()
 	// 超过三天则标记超时
 	if p.Status == Download && lastUpdate.Add(time.Hour*24*3).Before(now) {
-		p.CheckUpdate()
-		p.addLog(DownloadTimeout, "")
 		return true
 	}
 	return false
+}
+
+func (p *Policy) DownloadTimeout(msg string) {
+	p.addLog(DownloadTimeout, "")
+	p.Status = Wait
 }
 
 func (p *Policy) FinishDownload(msg string) {
@@ -113,6 +129,7 @@ func (p *Policy) Log() []*Log {
 }
 
 func (p *Policy) addLog(action Action, msg string) {
+	log.Printf("Policy触发操作：%v %v", action, msg)
 	p.Logs = append(p.Logs, &Log{
 		Action:   action,
 		EmitTime: time.Now(),

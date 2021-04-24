@@ -1,13 +1,14 @@
 package iface
 
 import (
+	"context"
 	"github.com/shlande/dmhy-rss/core"
 )
 
 // Server 对外界暴露对服务
 type Server interface {
 	// Search 添加一个监控
-	Search(keyword string) []*core.Collection
+	Search(ctx context.Context, keyword string) []*core.Collection
 	// Add 添加监听
 	Add(hash string) error
 	// Delete 删除监控
