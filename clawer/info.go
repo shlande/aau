@@ -25,7 +25,7 @@ type Item struct {
 	// 类型
 	Category
 	// 详细信息
-	Detail
+	*Detail
 	// 磁力链接地址
 	MagnetUrl string
 	// 原文链接

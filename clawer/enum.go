@@ -8,7 +8,7 @@ type (
 )
 
 const (
-	Unknown Category = iota
+	UnknownCategory Category = iota
 	FullSession
 	Animate
 	Movie
@@ -19,7 +19,8 @@ func (q Category) String() string {
 }
 
 const (
-	P720 Quality = iota
+	UnknownQuality Quality = iota
+	P720
 	P1080
 	K2
 )
@@ -29,7 +30,8 @@ func (q Quality) String() string {
 }
 
 const (
-	Internal SubType = iota
+	UnknownSubType SubType = iota
+	Internal
 	External
 )
 
@@ -38,7 +40,8 @@ func (s SubType) String() string {
 }
 
 const (
-	GB Language = 1 << iota
+	UnknownLanguage          = 0
+	GB              Language = 1 << iota
 	BIG5
 	JP
 )
@@ -71,9 +74,9 @@ var (
 		External: "外挂",
 	}
 	CategoryString = map[Category]string{
-		Unknown:     "未知",
-		FullSession: "季度全集",
-		Animate:     "动画",
-		Movie:       "电影",
+		UnknownCategory: "未知",
+		FullSession:     "季度全集",
+		Animate:         "动画",
+		Movie:           "电影",
 	}
 )

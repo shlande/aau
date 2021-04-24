@@ -16,7 +16,7 @@ func TestFindByKeywords(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	f, err := os.Open("./test.xml")
+	f, err := os.Open("../test.xml")
 	defer f.Close()
 	if err != nil {
 		panic(err)
@@ -26,7 +26,7 @@ func TestParse(t *testing.T) {
 		panic(err)
 	}
 	data, _ := json.Marshal(rcds)
-	w, _ := os.Create("./test.json")
+	w, _ := os.Create("../test.json")
 	defer w.Close()
 	io.Copy(w, bytes.NewReader(data))
 }
@@ -67,6 +67,32 @@ func TestParseTitle(t *testing.T) {
 	}
 }
 
+func TestSortSingle(t *testing.T) {
+	items := []*Item{
+		&Item{
+			Fansub:   []string{"nekomoekissaten"},
+			Title:    "【喵萌奶茶屋】★01月新番★[无职转生/Mushoku Tensei][11][1080p][简体][招募翻译校对]",
+			Category: Animate,
+			Detail: &Detail{
+				Name:     "",
+				Language: GB,
+				Quality:  P1080,
+				Episode:  11,
+				SubType:  Internal,
+			},
+		},
+	}
+	items = sort(items, &Option{
+		Episode:  11,
+		Fansub:   []string{"nekomoekissaten"},
+		Quality:  P1080,
+		Language: GB,
+	})
+	if len(items) == 0 {
+		panic("sort error")
+	}
+}
+
 func TestSort(t *testing.T) {
 	f, err := os.Open("../test.xml")
 	defer f.Close()
@@ -75,13 +101,14 @@ func TestSort(t *testing.T) {
 	}
 	items, err := parse(f)
 	items = sort(items, &Option{
-		Name:     "无职转生",
 		Episode:  11,
 		Fansub:   []string{"nekomoekissaten"},
 		Quality:  P1080,
 		Language: GB,
 	})
-	fmt.Println(items)
+	if len(items) != 1 {
+		panic("sort error")
+	}
 }
 
 func TestClassify(t *testing.T) {
