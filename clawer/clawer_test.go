@@ -38,13 +38,13 @@ func TestParseTitle(t *testing.T) {
 	}{
 		{
 			Title: "[桜都字幕組] 無職轉生～到了異世界就拿出真本事～ / Mushoku Tensei Isekai Ittara Honki Dasu [11][1080p@60FPS][繁體內嵌]",
-			Want:  &Detail{Language: BIG5, Quality: P1080, Episode: 11, SubType: Internal},
+			Want:  &Detail{Name: "無職轉生～到了異世界就拿出真本事～", Language: BIG5, Quality: P1080, Episode: 11, SubType: Internal},
 		}, {
 			Title: "[NC-Raws] 無職轉生～到了異世界就拿出真本事～（僅限港澳台地區） / Mushoku Tensei - 11 [WEB-DL][1080p][AVC AAC][CHS_CHT_SRT][MKV]",
-			Want:  &Detail{Language: GB | BIG5, Quality: P1080, Episode: 11, SubType: Internal},
+			Want:  &Detail{Name: "無職轉生～到了異世界就拿出真本事～", Language: GB | BIG5, Quality: P1080, Episode: 11, SubType: Internal},
 		}, {
 			Title: "[爱恋\\u0026漫猫字幕组][1月新番][无职转生～到了异世界就拿出真本事～][Mushoku Tensei Isekai Ittara Honki Dasu][10][1080p][MP4][GB][简中]",
-			Want:  &Detail{Language: GB, Quality: P1080, Episode: 10, SubType: Internal},
+			Want:  &Detail{Name: "", Language: GB, Quality: P1080, Episode: 10, SubType: Internal},
 		}, {
 			Title: "【悠哈璃羽字幕社】[無職轉生～到了異世界就拿出真本事～_Mushoku Tensei][08][x264 1080p][CHT]",
 			Want:  &Detail{Language: BIG5, Quality: P1080, Episode: 8, SubType: Internal},
@@ -119,4 +119,55 @@ func TestClassify(t *testing.T) {
 	}
 	items, err := parse(f)
 	fmt.Println(items)
+}
+
+func Test_parseName(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want string
+	}{
+		{
+			name: "en",
+			args: "[Skymoon-Raws] 無職轉生，到了異世界就拿出真本事 / Mushoku Tensei - 11 [ViuTV][WEB-RIP][CHT][SRTx2][1080p][AVC AAC][MKV](先行版本)",
+			want: `無職轉生，到了異世界就拿出真本事`,
+		},
+		{
+			name: "",
+			args: `[NC-Raws] 無職轉生～到了異世界就拿出真本事～（僅限港澳台地區） / Mushoku Tensei - 11 [WEB-DL][1080p][AVC AAC][CHS_CHT_SRT][MKV]`,
+			want: "無職轉生～到了異世界就拿出真本事～",
+		},
+		{
+			name: "en-only",
+			args: "[爱恋\u0026漫猫字幕组][1月新番][无职转生～到了异世界就拿出真本事～][Mushoku Tensei Isekai Ittara Honki Dasu][11][1080p][MP4][GB][简中]",
+			want: `无职转生～到了异世界就拿出真本事～`,
+		},
+		{
+			name: "neko",
+			args: "【喵萌奶茶屋】★01月新番★[無職轉生/Mushoku Tensei][09][720p][繁體][招募翻譯校對]",
+			want: "無職轉生",
+		},
+		{
+			name: "cc",
+			args: "​[c.c動漫][1月新番][無職轉生～到了異世界就拿出真本事～][10][BIG5][1080P][MP4]",
+			want: "無職轉生～到了異世界就拿出真本事～",
+		},
+		{
+			name: "UHA-wings",
+			args: `【悠哈璃羽字幕社】[無職轉生～到了異世界就拿出真本事～_Mushoku Tensei][09][x264 1080p][CHT]`,
+			want: "無職轉生～到了異世界就拿出真本事～",
+		},
+		{
+			name: "cn",
+			args: "[桜都字幕组] 无职转生～到了异世界就拿出真本事～ / Mushoku Tensei Isekai Ittara Honki Dasu [11][720p][简体内嵌]",
+			want: `无职转生～到了异世界就拿出真本事～`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseName(tt.args, false); got != tt.want {
+				t.Errorf("parseFansub() = %v , want %v", got, tt.want)
+			}
+		})
+	}
 }

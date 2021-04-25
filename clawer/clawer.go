@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type Option struct {
@@ -85,6 +86,7 @@ func sort(items []*Item, option *Option) []*Item {
 
 // 尝试解析头部，获取到一些信息
 func parseTitle(title string) *Detail {
+	name := parseName(title, false)
 	// 分割所有的书名号
 	eps := regexp.MustCompile(`[ |\[]([0-9]{1,3})[ |\]]`).FindString(title)
 	if len(eps) == 4 {
@@ -126,12 +128,60 @@ func parseTitle(title string) *Detail {
 		sub = External
 	}
 	return &Detail{
-		Name:     "",
+		Name:     name,
 		Language: lan,
 		Quality:  quality,
 		Episode:  int(episode),
 		SubType:  sub,
 	}
+}
+
+func parseName(title string, keep bool) string {
+	var cname, left string
+	if !keep {
+		// 查找第一个右括号书名号位置,这个位置一般是字幕组名称截止的位置
+		begin := regexp.MustCompile(`\]|】`).FindStringIndex(title)
+		// 删除掉字幕组
+		title = title[begin[1]:]
+	}
+
+	bw := regexp.MustCompile(`[\[|【]`).FindStringIndex(title)
+	// 如果内容是以括号开始的，那么name应该就是这个括号内的内容
+	if bw[0] == 0 {
+		ew := regexp.MustCompile(`\]|】`).FindStringIndex(title)
+		cname = title[bw[1]:ew[0]]
+		left = title[ew[1]:]
+	} else {
+		// 获取没被书名号括起来的内容
+		cname = title[:bw[0]]
+		left = title[bw[1]:]
+	}
+	// 判断是否是有效的名称,有些字幕组会加一月新番等多余的名字
+	if regexp.MustCompile(`新番`).MatchString(cname) {
+		// 这类型的暂时无法匹配
+		return parseName(left, true)
+	}
+	// 对有效名称进行最后的处理
+	// 通过反斜杠来分割名称中中英文
+	{
+		if raw := strings.Split(cname, "\\"); len(raw) != 1 {
+			cname = raw[0]
+		}
+		if raw := strings.Split(cname, "/"); len(raw) != 1 {
+			cname = raw[0]
+		}
+		if raw := strings.Split(cname, "_"); len(raw) != 1 {
+			cname = raw[0]
+		}
+		// 删除仅限港澳台地区的字样
+		{
+			cname = regexp.MustCompile(`[\[|【|(|（](仅|僅)限港澳台(地区|地區)*[\)|\]|】|）]`).ReplaceAllString(cname, "")
+		}
+		// 删除两侧的空白符号
+		cname = regexp.MustCompile(`^ *`).ReplaceAllString(cname, "")
+		cname = regexp.MustCompile(` *$`).ReplaceAllString(cname, "")
+	}
+	return cname
 }
 
 func parseCategory(category string) Category {
