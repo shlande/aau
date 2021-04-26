@@ -1,4 +1,4 @@
-package clawer
+package parse
 
 import (
 	"bytes"
@@ -12,7 +12,14 @@ import (
 )
 
 func TestFindByKeywords(t *testing.T) {
-	FindCollectionsByKeywords(context.Background(), "无职转生")
+	cls, err := FindCollectionsByKeywords(context.Background(), "无职转生")
+	if err != nil {
+		panic(err)
+	}
+	data, _ := json.Marshal(cls)
+	w, _ := os.Create("../test.json")
+	defer w.Close()
+	io.Copy(w, bytes.NewReader(data))
 }
 
 func TestParse(t *testing.T) {
@@ -22,10 +29,11 @@ func TestParse(t *testing.T) {
 		panic(err)
 	}
 	rcds, err := parse(f)
+	cls := classify(rcds)
 	if err != nil {
 		panic(err)
 	}
-	data, _ := json.Marshal(rcds)
+	data, _ := json.Marshal(cls)
 	w, _ := os.Create("../test.json")
 	defer w.Close()
 	io.Copy(w, bytes.NewReader(data))
@@ -127,6 +135,11 @@ func Test_parseName(t *testing.T) {
 		args string
 		want string
 	}{
+		{
+			name: "aaaa",
+			args: `[神枫字幕组] [1月新番][无职转生～到了异世界就拿出真本事～][Mushoku Tensei Isekai Ittara Honki Dasu][02][1080p][MP4][GB][简体中文]`,
+			want: "无职转生～到了异世界就拿出真本事～",
+		},
 		{
 			name: "en",
 			args: "[Skymoon-Raws] 無職轉生，到了異世界就拿出真本事 / Mushoku Tensei - 11 [ViuTV][WEB-RIP][CHT][SRTx2][1080p][AVC AAC][MKV](先行版本)",

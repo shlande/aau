@@ -1,4 +1,4 @@
-package clawer
+package parse
 
 import (
 	"context"
@@ -22,21 +22,27 @@ type Option struct {
 	Language
 }
 
+// FindCollectionsByKeywords 从动漫花园中查找collection
 func FindCollectionsByKeywords(ctx context.Context, keywords string) ([]*Collection, error) {
 	items, err := find(ctx, keywords)
 	if err != nil {
 		return nil, err
 	}
-	return classify(items), nil
+	var res = make([]*Collection, 0, len(items))
+	for _, i := range classify(items) {
+		res = append(res, i)
+	}
+	return res, nil
 }
 
+// FindItems 查找想要的单项内容
 func FindItems(ctx context.Context, option *Option) ([]*Item, error) {
 	return nil, nil
 }
 
 // 单纯的获取rss并解析成item
 func find(ctx context.Context, keywords string) ([]*Item, error) {
-	resp, err := http.Get("https://share.dmhy.org/topics/rss/rss.xml?sort_id=2&keyword=" + url.QueryEscape(keywords))
+	resp, err := http.Get("https://www.dmhy.org/topics/rss/rss.xml?sort_id=2&keyword=" + url.QueryEscape(keywords))
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +50,19 @@ func find(ctx context.Context, keywords string) ([]*Item, error) {
 }
 
 // 把item归类成collection
-func classify(items []*Item) []*Collection {
-	return nil
+func classify(items []*Item) map[string]*Collection {
+	var res = make(map[string]*Collection)
+	for _, i := range items {
+		// 先尝试创建cl
+		cl := NewCollection(i)
+		ocl, has := res[cl.Hash()]
+		if !has {
+			res[cl.Hash()] = cl
+			continue
+		}
+		ocl.AddItem(i)
+	}
+	return res
 }
 
 // 根据option筛选出指定的item
@@ -154,11 +171,14 @@ func parseName(title string, keep bool) string {
 	} else {
 		// 获取没被书名号括起来的内容
 		cname = title[:bw[0]]
-		left = title[bw[1]:]
+		left = title[bw[0]:]
 	}
 	// 判断是否是有效的名称,有些字幕组会加一月新番等多余的名字
 	if regexp.MustCompile(`新番`).MatchString(cname) {
 		// 这类型的暂时无法匹配
+		return parseName(left, true)
+	}
+	if regexp.MustCompile(`^\s*$`).MatchString(cname) {
 		return parseName(left, true)
 	}
 	// 对有效名称进行最后的处理

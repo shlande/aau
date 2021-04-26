@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	iface "github.com/shlande/dmhy-rss"
-	"github.com/shlande/dmhy-rss/clawer"
+	"github.com/shlande/dmhy-rss/parse"
 	"log"
 	"time"
 )
 
-func NewCollection(collection *clawer.Collection, updateTime time.Weekday, episodes int) *Collection {
+func NewCollection(collection *parse.Collection, updateTime time.Weekday, episodes int) *Collection {
 	return &Collection{
 		// 进行hash计算
 		Hash:        "hash-here",
@@ -26,15 +26,15 @@ type Collection struct {
 	Hash string
 	Status
 	WantEpisode int
-	Info        *clawer.Collection
+	Info        *parse.Collection
 	*Policy
 	dl iface.Downloader
 	// 补充信息
-	latest *clawer.Item
+	latest *parse.Item
 }
 
 func (c *Collection) Update(ctx context.Context) error {
-	items, err := clawer.FindItems(ctx, &clawer.Option{
+	items, err := parse.FindItems(ctx, &parse.Option{
 		Name:     c.Info.Name,
 		Episode:  c.Info.Latest + 1,
 		Fansub:   c.Info.Fansub,

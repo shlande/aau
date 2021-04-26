@@ -1,4 +1,4 @@
-package clawer
+package parse
 
 type (
 	Category uint8
@@ -60,9 +60,13 @@ func (l Language) String() (name string) {
 
 var (
 	LanguageString = map[Language]string{
-		GB:   "简体",
-		BIG5: "繁体",
-		JP:   "日语",
+		GB:             "简体",
+		BIG5:           "繁体",
+		GB | BIG5:      "简繁",
+		JP:             "日语",
+		GB | JP:        "简日",
+		BIG5 | JP:      "繁日",
+		GB | BIG5 | JP: "简繁日",
 	}
 	QualityString = map[Quality]string{
 		P1080: "1080p",
