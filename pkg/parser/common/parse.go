@@ -14,17 +14,19 @@ func (p Parse) ParseTitle(title string) (*parser.TitleInfo, error) {
 	return parseTitle(title), nil
 }
 
-func (p Parse) Parse(info *provider.Info) (*parser.Detail, error) {
-	ti, err := p.ParseTitle(info.Title)
-	if err != nil {
-		return nil, err
+func (p Parse) Parse(infos ...*provider.Info) (res []*parser.Detail, err error) {
+	for _, info := range infos {
+		ti, err := p.ParseTitle(info.Title)
+		if err != nil {
+			return nil, err
+		}
+		ti.Category = parser.ParseCategory(info.RawCategory)
+		res = append(res, &parser.Detail{
+			TitleInfo: ti,
+			Info:      info,
+		})
 	}
-	ti.Category = parser.ParseCategory(info.RawCategory)
-
-	return &parser.Detail{
-		TitleInfo: ti,
-		Info:      info,
-	}, nil
+	return
 }
 
 // 尝试解析头部，获取到一些信息

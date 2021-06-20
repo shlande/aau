@@ -5,7 +5,7 @@ import "github.com/shlande/dmhy-rss/pkg/provider"
 // Parser is a tools used to parse useful info from common
 type Parser interface {
 	ParseTitle(title string) (*TitleInfo, error)
-	Parse(info *provider.Info) (*Detail, error)
+	Parse(info ...*provider.Info) ([]*Detail, error)
 }
 
 func ParseCategory(category string) Category {

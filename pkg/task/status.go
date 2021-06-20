@@ -47,7 +47,7 @@ type Policy struct {
 	UpdateDay time.Weekday
 	Last      time.Time
 	Next      time.Time
-	Logs      []*Log `json:"_"`
+	Logs      []*Log
 }
 
 // 计算下一次应该更新的时间

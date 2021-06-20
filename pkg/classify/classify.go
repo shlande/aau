@@ -15,7 +15,14 @@ type Option struct {
 }
 
 // Classify 把item归类成collection
-func Classify(items []*parser.Detail) map[string]*Collection {
+func Classify(items []*parser.Detail) (cls []*Collection) {
+	for _, val := range classify(items) {
+		cls = append(cls, val)
+	}
+	return
+}
+
+func classify(items []*parser.Detail) map[string]*Collection {
 	var res = make(map[string]*Collection)
 	for _, i := range items {
 		// 先尝试创建cl

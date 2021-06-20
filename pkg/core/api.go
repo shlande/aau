@@ -1,6 +1,7 @@
-package api
+package core
 
 import (
+	"context"
 	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/task"
 	"time"
@@ -8,7 +9,7 @@ import (
 
 type Api interface {
 	// Keywords 通过关键词去查找信息
-	Keywords(words string) []*classify.Collection
+	Keywords(ctx context.Context, words string) []*classify.Collection
 
 	// Watch 添加collection到监控列表中，进行同步更新
 	Watch(collectionId string, updateTime *time.Time) error
