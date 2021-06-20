@@ -2,39 +2,44 @@ package core
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
 	"fmt"
 	iface "github.com/shlande/dmhy-rss"
-	"github.com/shlande/dmhy-rss/parse"
+	"github.com/shlande/dmhy-rss/pkg/parser"
+	"github.com/shlande/dmhy-rss/pkg/parser/common"
 	"log"
 	"time"
 )
 
-func NewCollection(collection *parse.Collection, updateTime time.Weekday, episodes int) *Collection {
+func NewCollection(collection *parser.Collection, updateTime time.Weekday, episodes int) *Collection {
+	hash := md5.New().Sum([]byte(collection.Hash()))
 	return &Collection{
-		// 进行hash计算
-		Hash:        "hash-here",
+		Hash_:       string(hash),
 		WantEpisode: episodes,
 		Info:        collection,
 		Policy:      NewPolicy(updateTime),
 	}
-
 }
 
 type Collection struct {
 	// 将名称，类型，翻译组都进行hash计算得到结果
-	Hash string
+	Hash_ string `json:"hash"`
 	Status
 	WantEpisode int
-	Info        *parse.Collection
+	Info        *parser.Collection
 	*Policy
 	dl iface.Downloader
 	// 补充信息
-	latest *parse.Item
+	latest *parser.Item
+}
+
+func (c *Collection) Hash() string {
+	return c.Hash_
 }
 
 func (c *Collection) Update(ctx context.Context) error {
-	items, err := parse.FindItems(ctx, &parse.Option{
+	items, err := common.FindItems(ctx, &common.Option{
 		Name:     c.Info.Name,
 		Episode:  c.Info.Latest + 1,
 		Fansub:   c.Info.Fansub,

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	iface "github.com/shlande/dmhy-rss"
-	"github.com/shlande/dmhy-rss/parse"
+	"github.com/shlande/dmhy-rss/pkg/parser/common"
 	"time"
 )
 
@@ -19,7 +19,7 @@ type Core struct {
 }
 
 func (c *Core) Search(ctx context.Context, keyword string) []*Collection {
-	cls, err := parse.FindCollectionsByKeywords(ctx, keyword)
+	cls, err := common.FindCollectionsByKeywords(ctx, keyword)
 	if err != nil {
 		return nil
 	}

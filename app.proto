@@ -1,8 +1,10 @@
 syntax = "proto3";
-option go_package = ".;";
+package updater;
+option go_package = ".;updater";
 
 service Server {
   rpc Search(SearchRequest) returns (SearchResponse) {}
+  rpc List(PageRequest) returns (PageResponse) {}
 }
 
 message SearchRequest {
@@ -10,15 +12,54 @@ message SearchRequest {
 }
 
 message SearchResponse {
+  repeated Collection data = 1;
+}
+
+message PageRequest {
+  int32 page = 1;
+  int32 size = 2;
+}
+
+message PageResponse {
 
 }
 
 message Collection {
-  string name =1 ;
-  repeated string fansub = 2;
-  int64 lastUpdate = 3;
+  string hash = 1 ;
+  string name = 2;
+  repeated string fansub = 3;
+  Quality quality = 4;
+  Category category = 5;
+  SubType subtype = 6;
+  int32 language = 7;
+  int32 latest = 8;
+  repeated Video videos = 9;
 }
 
-message Videos {
+message Video {
+  string title = 1;
+  string magnet = 2;
+  string link = 3;
+  int64 update_time = 4;
+  int32 episode = 5;
+}
 
+enum Quality {
+  unknown_quality = 0;
+  p1080 = 1;
+  p720 = 2;
+  k2 = 3;
+}
+
+enum Category {
+  unknown_category = 0;
+  animate = 1;
+  full_session = 2;
+  movie = 3;
+}
+
+enum SubType {
+  unknown_subtype = 0;
+  internal = 1;
+  external = 2;
 }
