@@ -73,15 +73,14 @@ func (w *update) Do(ctx context.Context) (Machine, *Log) {
 	if err != nil {
 		return w.retry(), newLog(UpdateFail, err.Error())
 	}
-	details = classify.Find(details, &classify.Option{
+	details = classify.Find(details, &classify.Condition{
 		Name:     w.Name,
-		Episode:  w.Latest + 1,
 		Fansub:   w.Fansub,
 		Category: w.Category,
 		Quality:  w.Quality,
 		SubType:  w.SubType,
 		Language: w.Language,
-	})
+	}, classify.After(w.Latest))
 	// 更新失败
 	if len(details) < 1 {
 		return w.retry(), newLog(UpdateFail, "没有找到符合要求的数据")

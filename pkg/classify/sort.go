@@ -2,13 +2,50 @@ package classify
 
 import "github.com/shlande/dmhy-rss/pkg/parser"
 
+type Options func(opt *Condition)
+
+func After(episode int) Options {
+	return func(opt *Condition) {
+		opt.episode = func(i int) bool {
+			if i > episode {
+				return true
+			}
+			return false
+		}
+	}
+}
+
+func Equal(episode int) Options {
+	return func(opt *Condition) {
+		opt.episode = func(i int) bool {
+			if i == episode {
+				return true
+			}
+			return false
+		}
+	}
+}
+
+type Condition struct {
+	Name    string
+	episode func(int) bool
+	Fansub  []string
+	parser.Category
+	parser.Quality
+	parser.SubType
+	parser.Language
+}
+
 // Find 根据option筛选出指定的item
-func Find(items []*parser.Detail, option *Option) []*parser.Detail {
+func Find(items []*parser.Detail, condition *Condition, opts ...Options) []*parser.Detail {
+	for _, v := range opts {
+		v(condition)
+	}
 	var matches []*parser.Detail
 	// var fansub,episode,quality,subtype,lan bool
 	for _, i := range items {
 		// 暂时不进行name匹配
-		for _, fs := range option.Fansub {
+		for _, fs := range condition.Fansub {
 			for _, ifs := range i.Fansub {
 				if fs == ifs {
 					goto EPISODE
@@ -17,20 +54,20 @@ func Find(items []*parser.Detail, option *Option) []*parser.Detail {
 		}
 		continue
 	EPISODE:
-		if option.Episode != 0 && i.Episode != option.Episode {
+		if condition.episode != nil && !condition.episode(i.Episode) {
 			continue
 		}
-		if option.Quality != parser.UnknownQuality && option.Quality != i.Quality {
+		if condition.Quality != parser.UnknownQuality && condition.Quality != i.Quality {
 			continue
 		}
-		if option.SubType != parser.UnknownSubType && i.SubType != option.SubType {
+		if condition.SubType != parser.UnknownSubType && i.SubType != condition.SubType {
 			continue
 		}
-		if option.Category != parser.UnknownCategory && i.Category != option.Category {
+		if condition.Category != parser.UnknownCategory && i.Category != condition.Category {
 			continue
 		}
 		// 暂时只支持And匹配
-		if option.Language != parser.UnknownLanguage && i.Language&option.Language != option.Language {
+		if condition.Language != parser.UnknownLanguage && i.Language&condition.Language != condition.Language {
 			continue
 		}
 		matches = append(matches, i)
@@ -39,6 +76,6 @@ func Find(items []*parser.Detail, option *Option) []*parser.Detail {
 }
 
 // FindInCollection 在collection中查找
-func FindInCollection(collection []*Collection, option *Option) {
+func FindInCollection(collection []*Collection, condition *Collection) {
 	panic("impl me")
 }

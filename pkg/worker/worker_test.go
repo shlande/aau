@@ -29,7 +29,7 @@ func TestWorker(t *testing.T) {
 		panic(err)
 	}
 	cl := collection[0]
-	cl.Latest = cl.Latest - 1
+	cl.Latest = cl.Latest - 2
 	worker := NewWorker(cl, time.Sunday, provider, parser, dl)
 
 	var m Machine = &waiting{worker: worker, timer: time.NewTimer(0)}
@@ -44,7 +44,7 @@ func TestWorker(t *testing.T) {
 		panic("1")
 	}
 	// 这里更新应该完成，手动把之前设置的latest调整回去
-	worker.Collection.Latest += 1
+	worker.Collection.Latest += 2
 	// 准备下载
 	m, log = m.Do(ctx)
 	if m.Status() != Wait || log.Action != DownloadCancel {

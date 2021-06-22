@@ -4,16 +4,6 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/parser"
 )
 
-type Option struct {
-	Name    string
-	Episode int
-	Fansub  []string
-	parser.Category
-	parser.Quality
-	parser.SubType
-	parser.Language
-}
-
 // Classify 把item归类成collection
 func Classify(items []*parser.Detail) (cls []*Collection) {
 	for _, val := range classify(items) {
