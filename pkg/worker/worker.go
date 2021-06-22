@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/shlande/dmhy-rss/pkg/classify"
-	"github.com/shlande/dmhy-rss/pkg/downloader"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/shlande/dmhy-rss/pkg/provider"
+	"github.com/shlande/dmhy-rss/pkg/subscriber"
 	"time"
 )
 
@@ -22,14 +22,14 @@ type Worker interface {
 	Terminate()
 }
 
-func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd provider.Provider, ps parser.Parser, dl downloader.Downloader) *worker {
+func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *worker {
 	return &worker{
 		parser:     ps,
 		Id:         collection.Id(),
 		Collection: collection,
 		provider:   pvd,
 		UpdateTime: updateTime,
-		dl:         dl,
+		subscriber: sub,
 	}
 }
 
@@ -40,12 +40,12 @@ type worker struct {
 	*classify.Collection
 	UpdateTime time.Weekday
 	provider   provider.Provider
-	dl         downloader.Downloader
+	subscriber subscriber.Subscriber
 }
 
 func (w *worker) Run(ctx context.Context) {
 	var log *Log
-	var m Machine = &waiting{worker: w, timer: time.NewTimer(0)}
+	var m Machine = &waiting{worker: w, Timer: time.NewTimer(0)}
 	for {
 		m, log = m.Do(ctx)
 		fmt.Println(log)
