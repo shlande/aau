@@ -54,7 +54,7 @@ func TestWorker(t *testing.T) {
 	m, log = m.Do(ctx)
 	m, log = m.Do(ctx)
 	// 这次应该是更新完成
-	if log.Action != UpdateFail || m.Status() != Wait {
+	if log.Action != UpdateFail || m.Status() != Update {
 		panic("3")
 	}
 }

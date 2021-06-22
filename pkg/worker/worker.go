@@ -26,7 +26,6 @@ func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd pro
 	return &worker{
 		parser:     ps,
 		Id:         collection.Id(),
-		Latest:     collection.GetLatest(),
 		Collection: collection,
 		provider:   pvd,
 		UpdateTime: updateTime,
@@ -38,7 +37,6 @@ func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd pro
 type worker struct {
 	Id     string
 	parser parser.Parser
-	Latest *parser.Detail
 	*classify.Collection
 	UpdateTime time.Weekday
 	provider   provider.Provider

@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"github.com/shlande/dmhy-rss/pkg/classify"
+	"log"
 	"time"
 )
 
@@ -42,11 +43,12 @@ func (w *waiting) Do(ctx context.Context) (Machine, *Log) {
 
 func (w *waiting) next() Machine {
 	w.timer.Stop()
-	return &update{w.worker}
+	return &update{worker: w.worker}
 }
 
 type update struct {
 	*worker
+	*time.Timer
 }
 
 func (u *update) Skip() (Machine, *Log) {
@@ -58,30 +60,22 @@ func (u *update) Status() Status {
 }
 
 func (u *update) retry() Machine {
-	return &waiting{worker: u.worker, timer: time.NewTimer(time.Hour)}
+	return &update{worker: u.worker, Timer: time.NewTimer(time.Hour)}
 }
 
 func (w *update) Do(ctx context.Context) (Machine, *Log) {
-	// 查找合适的内容
+	w.sleep(ctx)
 	infos, err := w.provider.Keywords(ctx, w.Name)
 	if err != nil {
-		return w.retry(), &Log{}
+		return w.retry(), newLog(UpdateFail, err.Error())
 	}
 	details, err := w.parser.Parse(infos...)
 	if err != nil {
-		return w.retry(), &Log{
-			Action:   UpdateFail,
-			EmitTime: time.Now(),
-			Message:  err.Error(),
-		}
-	}
-	episode := 1
-	if w.Latest != nil {
-		episode = w.Latest.Episode + 1
+		return w.retry(), newLog(UpdateFail, err.Error())
 	}
 	details = classify.Find(details, &classify.Option{
 		Name:     w.Name,
-		Episode:  episode,
+		Episode:  w.Latest + 1,
 		Fansub:   w.Fansub,
 		Category: w.Category,
 		Quality:  w.Quality,
@@ -90,27 +84,38 @@ func (w *update) Do(ctx context.Context) (Machine, *Log) {
 	})
 	// 更新失败
 	if len(details) < 1 {
-		return w.retry(), &Log{
-			Action:   UpdateFail,
-			EmitTime: time.Now(),
-			Message:  "没有找到符合条件的内容",
+		return w.retry(), newLog(UpdateFail, "没有找到符合要求的数据")
+	}
+	urls := make([]string, 0, len(details))
+	for _, v := range details {
+		if len(v.MagnetUrl) != 0 {
+			urls = append(urls, v.MagnetUrl)
+		} else if len(v.TorrentUrl) != 0 {
+			urls = append(urls, v.TorrentUrl)
+		}
+		w.Collection.Add(v)
+	}
+	// 更新完成，开始下载
+	return &download{w.worker, urls}, newLog(UpdateFinish, "")
+}
+
+func (w *update) sleep(ctx context.Context) (ctxDone bool) {
+	if w.Timer == nil {
+		return false
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return true
+		case <-w.Timer.C:
+			return false
 		}
 	}
-	w.Latest = details[0]
-	w.Collection.Add(w.Latest)
-	// 更新完成，开始下载
-	log := &Log{
-		Action:   UpdateFinish,
-		EmitTime: time.Now(),
-	}
-	if len(details) > 1 {
-		log.Message = "找到多条记录，使用第一条"
-	}
-	return &download{w.worker}, log
 }
 
 type download struct {
 	*worker
+	urls []string
 }
 
 func (d *download) Skip() (Machine, *Log) {
@@ -121,18 +126,9 @@ func (d *download) Status() Status {
 	return Download
 }
 
-func (d *download) getUrl() string {
-	url := d.Latest.MagnetUrl
-	if len(url) == 0 {
-		url = d.Latest.TorrentUrl
-	}
-	return url
-}
-
 func (d *download) Do(ctx context.Context) (Machine, *Log) {
 	// 获取下载地址
-	url := d.getUrl()
-	if len(url) == 0 {
+	if len(d.urls) == 0 {
 		return d.next(), &Log{
 			Action:   DownloadFinish,
 			EmitTime: time.Now(),
@@ -146,54 +142,18 @@ func (d *download) Do(ctx context.Context) (Machine, *Log) {
 			Message:  "没有指定下载器，跳过下载",
 		}
 	}
-	err := d.dl.Add(ctx, url)
-	if err != nil {
-		return d.next(), &Log{
-			Action:   DownloadCancel,
-			EmitTime: time.Now(),
-			Message:  "下载失败：" + err.Error(),
+	for _, v := range d.urls {
+		err := d.dl.Add(ctx, v)
+		if err != nil {
+			log.Println("无法添加下载任务:" + err.Error())
 		}
 	}
-	// 如果成功，则进行观察
-	ticker := time.NewTimer(time.Minute)
-	defer ticker.Stop()
-	var (
-		faild   int
-		process float64
-	)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, nil
-		case <-ticker.C:
-			process, err = d.dl.Check(ctx, url)
-			if err != nil {
-				faild += 1
-			}
-			// 最大重试次数
-			if faild >= 5 {
-				return d.next(), &Log{
-					Action:   DownloadCancel,
-					EmitTime: time.Now(),
-					Message:  "下载检查错误次数达到最大限制：" + err.Error(),
-				}
-			}
-			if process == 1 {
-				return d.next(), &Log{
-					Action:   DownloadFinish,
-					EmitTime: time.Now(),
-				}
-			}
-		}
-	}
+	// FIXME: 启动协程管理下载？
+	return d.next(), newLog(DownloadFinish, "")
 }
 
 func (d *download) next() Machine {
-	return &waiting{d.worker, d.getNextUpdateTime()}
-}
-
-func (d *download) getNextUpdateTime() *time.Timer {
-	return time.NewTimer(getNextUpdateTime(d.UpdateTime))
+	return &waiting{d.worker, time.NewTimer(getNextUpdateTime(d.UpdateTime))}
 }
 
 func getNextUpdateTime(weekday time.Weekday) time.Duration {

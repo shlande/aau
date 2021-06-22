@@ -29,6 +29,14 @@ const (
 	Terminate
 )
 
+func newLog(action Action, message string) *Log {
+	return &Log{
+		Action:   action,
+		EmitTime: time.Now(),
+		Message:  message,
+	}
+}
+
 type Log struct {
 	Action
 	EmitTime time.Time
