@@ -12,4 +12,6 @@ type Worker interface {
 	// Log 输出日志
 	Log() []*Log
 	Stop()
+	// 结束并删除任务
+	Terminate()
 }
