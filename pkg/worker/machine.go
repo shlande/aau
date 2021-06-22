@@ -1,4 +1,4 @@
-package task
+package worker
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type Machine interface {
 // waiting 等待下一次更新
 type waiting struct {
 	*worker
-	next *time.Timer
+	timer *time.Timer
 }
 
 func (w *waiting) Skip() (Machine, *Log) {
@@ -35,9 +35,14 @@ func (w *waiting) Do(ctx context.Context) (Machine, *Log) {
 			EmitTime: time.Now(),
 			Message:  "ctx down",
 		}
-	case <-w.next.C:
-		return &update{w.worker}, nil
+	case <-w.timer.C:
+		return w.next(), nil
 	}
+}
+
+func (w *waiting) next() Machine {
+	w.timer.Stop()
+	return &update{w.worker}
 }
 
 type update struct {
@@ -52,20 +57,31 @@ func (u *update) Status() Status {
 	return Update
 }
 
+func (u *update) retry() Machine {
+	return &waiting{worker: u.worker, timer: time.NewTimer(time.Hour)}
+}
+
 func (w *update) Do(ctx context.Context) (Machine, *Log) {
 	// 查找合适的内容
-	infos := w.provider.Keywords(ctx, w.Name)
+	infos, err := w.provider.Keywords(ctx, w.Name)
+	if err != nil {
+		return w.retry(), &Log{}
+	}
 	details, err := w.parser.Parse(infos...)
 	if err != nil {
-		return w, &Log{
+		return w.retry(), &Log{
 			Action:   UpdateFail,
 			EmitTime: time.Now(),
 			Message:  err.Error(),
 		}
 	}
+	episode := 1
+	if w.Latest != nil {
+		episode = w.Latest.Episode + 1
+	}
 	details = classify.Find(details, &classify.Option{
 		Name:     w.Name,
-		Episode:  w.Latest.Episode + 1,
+		Episode:  episode,
 		Fansub:   w.Fansub,
 		Category: w.Category,
 		Quality:  w.Quality,
@@ -74,7 +90,7 @@ func (w *update) Do(ctx context.Context) (Machine, *Log) {
 	})
 	// 更新失败
 	if len(details) < 1 {
-		return w, &Log{
+		return w.retry(), &Log{
 			Action:   UpdateFail,
 			EmitTime: time.Now(),
 			Message:  "没有找到符合条件的内容",
@@ -125,7 +141,7 @@ func (d *download) Do(ctx context.Context) (Machine, *Log) {
 	}
 	if d.dl == nil {
 		return d.next(), &Log{
-			Action:   DownloadFinish,
+			Action:   DownloadCancel,
 			EmitTime: time.Now(),
 			Message:  "没有指定下载器，跳过下载",
 		}

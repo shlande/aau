@@ -40,6 +40,11 @@ func TestParseTitle(t *testing.T) {
 		Want  *parser.TitleInfo
 	}{
 		{
+			// FIXME：修复这个bug
+			Title: "[時雨初空] 剃掉鬍子。然後撿了個女高中生。 12 繁體 MP4 720p",
+			Want:  &parser.TitleInfo{Name: "剃掉鬍子。然後撿了個女高中生。", Language: parser.GB, Quality: parser.P720, Episode: 12, SubType: parser.Internal},
+		},
+		{
 			Title: "[桜都字幕組] 無職轉生～到了異世界就拿出真本事～ / Mushoku Tensei Isekai Ittara Honki Dasu [11][1080p@60FPS][繁體內嵌]",
 			Want:  &parser.TitleInfo{Name: "無職轉生～到了異世界就拿出真本事～", Language: parser.BIG5, Quality: parser.P1080, Episode: 11, SubType: parser.Internal},
 		}, {

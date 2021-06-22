@@ -12,13 +12,14 @@ import (
 // it will automatically fill other info when adding first item.
 func NewCollection(item *parser.Detail) *Collection {
 	return &Collection{
+		Name:       item.Name,
 		Fansub:     item.Fansub,
 		Quality:    item.Quality,
 		Category:   item.TitleInfo.Category,
 		SubType:    item.SubType,
 		Language:   item.Language,
 		Latest:     item.Episode,
-		LastUpdate: time.Now(),
+		LastUpdate: *item.CreateTime,
 		Items:      []*parser.Detail{item},
 	}
 }
@@ -60,9 +61,9 @@ func (c *Collection) Add(item *parser.Detail) error {
 
 func (c *Collection) compare(item *parser.Detail) bool {
 	return c.Language == item.Language &&
-		c.SubType != item.SubType &&
-		c.Quality != item.Quality &&
-		c.Category != item.TitleInfo.Category
+		c.SubType == item.SubType &&
+		c.Quality == item.Quality &&
+		c.Category == item.TitleInfo.Category
 }
 
 func (c *Collection) Has(item *parser.Detail) bool {
@@ -80,6 +81,15 @@ func (c *Collection) String() string {
 
 func (c *Collection) Id() string {
 	return string(md5.New().Sum([]byte(c.String())))
+}
+
+func (c *Collection) GetLatest() *parser.Detail {
+	for _, item := range c.Items {
+		if item.Episode == c.Latest {
+			return item
+		}
+	}
+	return nil
 }
 
 // diff find the // of new and old.

@@ -8,7 +8,7 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/shlande/dmhy-rss/pkg/provider"
 	"github.com/shlande/dmhy-rss/pkg/store"
-	"github.com/shlande/dmhy-rss/pkg/task"
+	"github.com/shlande/dmhy-rss/pkg/worker"
 	"log"
 	"time"
 )
@@ -20,7 +20,7 @@ type Core struct {
 	downloader.Downloader
 	perm  store.Store
 	temp  store.Store
-	tasks map[string]task.Worker
+	tasks map[string]worker.Worker
 }
 
 func (c *Core) Keywords(ctx context.Context, words string) []*classify.Collection {
@@ -43,7 +43,7 @@ func (c *Core) Watch(collectionId string, updateTime time.Weekday) error {
 	if _, has := c.tasks[collectionId]; has {
 		return errors.New("已经监控过了")
 	}
-	task := task.NewWorker(cl, updateTime, c.Provider, c.Parser)
+	task := worker.NewWorker(cl, updateTime, c.Provider, c.Parser)
 	go task.Run(c.ctx)
 	c.tasks[task.Id] = task
 	return nil
@@ -63,6 +63,6 @@ func (c *Core) UnWatch(collectionId string) error {
 //	panic("implement me")
 //}
 
-func (c *Core) Log(collectionId string) []*task.Log {
+func (c *Core) Log(collectionId string) []*worker.Log {
 	panic("implement me")
 }

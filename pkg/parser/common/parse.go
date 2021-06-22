@@ -94,7 +94,9 @@ func parseName(title string, keep bool) string {
 
 	bw := regexp.MustCompile(`[\[|【]`).FindStringIndex(title)
 	// 如果内容是以括号开始的，那么name应该就是这个括号内的内容
-	if bw[0] == 0 {
+	if bw == nil {
+		return title
+	} else if bw[0] == 0 {
 		ew := regexp.MustCompile(`\]|】`).FindStringIndex(title)
 		cname = title[bw[1]:ew[0]]
 		left = title[ew[1]:]

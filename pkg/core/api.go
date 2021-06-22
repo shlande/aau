@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"github.com/shlande/dmhy-rss/pkg/classify"
-	"github.com/shlande/dmhy-rss/pkg/task"
+	"github.com/shlande/dmhy-rss/pkg/worker"
 	"time"
 )
 
@@ -20,5 +20,5 @@ type Api interface {
 	WatchList()
 
 	// Log 获取更新信息
-	Log(collectionId string) []*task.Log
+	Log(collectionId string) []*worker.Log
 }
