@@ -32,7 +32,7 @@ func TestWorker(t *testing.T) {
 	cl.Latest = cl.Latest - 2
 	worker := NewWorker(cl, time.Sunday, provider, parser, dl)
 
-	var m Machine = &waiting{worker: worker, Timer: time.NewTimer(0)}
+	var m Machine = &waiting{Worker: worker, Timer: time.NewTimer(0)}
 	// 第一次，应该跳转到waiting状态
 	m = m.Do(ctx)
 	if m.Status() != Update {

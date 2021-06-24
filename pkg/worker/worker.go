@@ -9,20 +9,8 @@ import (
 	"time"
 )
 
-// Worker 负责监控更新collection
-// 当一个collection需要更新时发送消息
-type Worker interface {
-	Id() string
-	Run(ctx context.Context)
-	// Log 输出日志
-	Log() []*Log
-	Stop()
-	// 结束并删除任务
-	Terminate()
-}
-
-func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *worker {
-	return &worker{
+func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *Worker {
+	return &Worker{
 		parser:     ps,
 		Id:         collection.Id(),
 		Collection: collection,
@@ -34,7 +22,7 @@ func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd pro
 }
 
 // 基础资源
-type worker struct {
+type Worker struct {
 	Id     string
 	cf     func()
 	end    chan struct{}
@@ -46,9 +34,9 @@ type worker struct {
 	logs       []*Log
 }
 
-func (w *worker) Run(ctx context.Context) {
+func (w *Worker) Run(ctx context.Context) {
 	ctx, w.cf = context.WithCancel(ctx)
-	var m Machine = &waiting{worker: w, Timer: time.NewTimer(0)}
+	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(0)}
 	for {
 		m = m.Do(ctx)
 		if m == nil {
@@ -58,19 +46,19 @@ func (w *worker) Run(ctx context.Context) {
 	w.end <- struct{}{}
 }
 
-func (w *worker) Terminate() {
+func (w *Worker) Terminate() {
 	w.cf()
 	<-w.end
 }
 
-func (w *worker) addLog(log *Log) {
+func (w *Worker) addLog(log *Log) {
 	w.logs = append(w.logs, log)
 }
 
-func (w *worker) Log() []*Log {
+func (w *Worker) Log() []*Log {
 	panic("implement me")
 }
 
-func (w *worker) Stop() {
+func (w *Worker) Stop() {
 	panic("implement me")
 }

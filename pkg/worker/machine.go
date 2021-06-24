@@ -15,7 +15,7 @@ type Machine interface {
 
 // waiting 等待下一次更新
 type waiting struct {
-	*worker
+	*Worker
 	*time.Timer
 }
 
@@ -37,11 +37,11 @@ func (w *waiting) Do(ctx context.Context) Machine {
 }
 
 func (w *waiting) next() Machine {
-	return &update{worker: w.worker}
+	return &update{Worker: w.Worker}
 }
 
 type update struct {
-	*worker
+	*Worker
 	*time.Timer
 }
 
@@ -54,7 +54,7 @@ func (w *update) Status() Status {
 }
 
 func (w *update) retry() Machine {
-	return &update{worker: w.worker, Timer: w.getTimer()}
+	return &update{Worker: w.Worker, Timer: w.getTimer()}
 }
 
 func (w *update) Do(ctx context.Context) Machine {
@@ -84,8 +84,8 @@ func (w *update) Do(ctx context.Context) Machine {
 	}
 	for _, v := range details {
 		w.Collection.Add(v)
-		if w.worker.subscriber != nil {
-			w.worker.subscriber.Added(ctx, v)
+		if w.Worker.subscriber != nil {
+			w.Worker.subscriber.Added(ctx, v)
 		}
 	}
 	// 更新完成，开始下载
@@ -94,7 +94,7 @@ func (w *update) Do(ctx context.Context) Machine {
 }
 
 func (w *update) next() Machine {
-	return &waiting{worker: w.worker, Timer: w.getTimer()}
+	return &waiting{Worker: w.Worker, Timer: w.getTimer()}
 }
 
 func (w *update) getTimer() *time.Timer {
