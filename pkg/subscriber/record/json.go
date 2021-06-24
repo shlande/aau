@@ -10,7 +10,7 @@ import (
 )
 
 func NewJsonKVFromFile(path string) *JsonKV {
-	fil, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, os.ModeAppend)
+	fil, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0777)
 	if err != nil {
 		panic(err)
 	}

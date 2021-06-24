@@ -34,21 +34,21 @@ func TestWorker(t *testing.T) {
 
 	var m Machine = &waiting{worker: worker, Timer: time.NewTimer(0)}
 	// 第一次，应该跳转到waiting状态
-	m, _ = m.Do(ctx)
+	m = m.Do(ctx)
 	if m.Status() != Update {
 		panic("0")
 	}
 	// 准备更新
-	m, log := m.Do(ctx)
-	if m.Status() != Wait || log.Action != UpdateFinish {
+	m = m.Do(ctx)
+	if m.Status() != Wait {
 		panic("1")
 	}
 	// 这里更新应该完成，手动把之前设置的latest调整回去
 	worker.Collection.Latest += 2
 	// 准备下载
-	m, log = m.Do(ctx)
-	m, log = m.Do(ctx)
-	if m.Status() != Update || log.Action != UpdateFail {
+	m = m.Do(ctx)
+	m = m.Do(ctx)
+	if m.Status() != Update {
 		panic("2")
 	}
 }
