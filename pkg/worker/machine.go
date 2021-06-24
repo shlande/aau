@@ -10,7 +10,7 @@ import (
 type Machine interface {
 	Status() Status
 	Skip() (Machine, *Log)
-	Do(ctx context.Context) (Machine, *Log)
+	Do(ctx context.Context) Machine
 }
 
 // waiting 等待下一次更新
@@ -27,16 +27,12 @@ func (w *waiting) Status() Status {
 	return Wait
 }
 
-func (w *waiting) Do(ctx context.Context) (Machine, *Log) {
+func (w *waiting) Do(ctx context.Context) Machine {
 	select {
 	case <-ctx.Done():
-		return nil, &Log{
-			Action:   Terminate,
-			EmitTime: time.Now(),
-			Message:  "ctx down",
-		}
+		return nil
 	case <-w.Timer.C:
-		return w.next(), nil
+		return w.next()
 	}
 }
 
@@ -61,15 +57,17 @@ func (w *update) retry() Machine {
 	return &update{worker: w.worker, Timer: w.getTimer()}
 }
 
-func (w *update) Do(ctx context.Context) (Machine, *Log) {
+func (w *update) Do(ctx context.Context) Machine {
 	w.sleep(ctx)
 	infos, err := w.provider.Keywords(ctx, w.Name)
 	if err != nil {
-		return w.retry(), newLog(UpdateFail, err.Error())
+		w.addLog(newLog(UpdateFail, err.Error()))
+		return w.retry()
 	}
 	details, err := w.parser.Parse(infos...)
 	if err != nil {
-		return w.retry(), newLog(UpdateFail, err.Error())
+		w.addLog(newLog(UpdateFail, err.Error()))
+		return w.retry()
 	}
 	details = classify.Find(details, &classify.Condition{
 		Name:     w.Name,
@@ -81,7 +79,8 @@ func (w *update) Do(ctx context.Context) (Machine, *Log) {
 	}, classify.After(w.Latest))
 	// 更新失败
 	if len(details) < 1 {
-		return w.retry(), newLog(UpdateFail, "没有找到符合要求的数据")
+		w.addLog(newLog(UpdateFail, "没有找到符合要求的数据"))
+		return w.retry()
 	}
 	for _, v := range details {
 		w.Collection.Add(v)
@@ -90,7 +89,8 @@ func (w *update) Do(ctx context.Context) (Machine, *Log) {
 		}
 	}
 	// 更新完成，开始下载
-	return w.next(), newLog(UpdateFinish, "")
+	w.addLog(newLog(UpdateFinish, ""))
+	return w.next()
 }
 
 func (w *update) next() Machine {

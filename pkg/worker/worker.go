@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/shlande/dmhy-rss/pkg/provider"
@@ -30,30 +29,42 @@ func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd pro
 		provider:   pvd,
 		UpdateTime: updateTime,
 		subscriber: sub,
+		end:        make(chan struct{}, 1),
 	}
 }
 
 // 基础资源
 type worker struct {
 	Id     string
+	cf     func()
+	end    chan struct{}
 	parser parser.Parser
 	*classify.Collection
 	UpdateTime time.Weekday
 	provider   provider.Provider
 	subscriber subscriber.Subscriber
+	logs       []*Log
 }
 
 func (w *worker) Run(ctx context.Context) {
-	var log *Log
+	ctx, w.cf = context.WithCancel(ctx)
 	var m Machine = &waiting{worker: w, Timer: time.NewTimer(0)}
 	for {
-		m, log = m.Do(ctx)
-		fmt.Println(log)
+		m = m.Do(ctx)
+		if m == nil {
+			break
+		}
 	}
+	w.end <- struct{}{}
 }
 
 func (w *worker) Terminate() {
-	panic("implement me")
+	w.cf()
+	<-w.end
+}
+
+func (w *worker) addLog(log *Log) {
+	w.logs = append(w.logs, log)
 }
 
 func (w *worker) Log() []*Log {
