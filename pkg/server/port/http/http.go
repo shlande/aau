@@ -26,9 +26,9 @@ func BuildHandler(server port.Api) http.Handler {
 			case 200:
 				fallthrough
 			case 400:
-				logger.Infoln(codeInterceptor.code, request.URL.Path, request.RemoteAddr)
+				logger.Infoln(codeInterceptor.code, request.Method, request.RequestURI, request.RemoteAddr)
 			default:
-				logger.Errorln(codeInterceptor.code, request.URL.Path, request.RemoteAddr)
+				logger.Errorln(codeInterceptor.code, request.Method, request.RequestURI, request.RemoteAddr)
 			}
 		})
 	})
@@ -40,7 +40,12 @@ func BuildHandler(server port.Api) http.Handler {
 			write(writer, err)
 			return
 		}
-		write(writer, server.Search(request.Context(), keywords))
+		res, err := server.Search(request.Context(), keywords)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		write(writer, res)
 	})
 
 	router.Path("/watch").Methods(http.MethodPost).HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
@@ -55,7 +60,12 @@ func BuildHandler(server port.Api) http.Handler {
 
 	router.Path("/watch/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		args := mux.Vars(request)
-		write(writer, server.WatchStatus(args["id"]))
+		status, err := server.WatchStatus(args["id"])
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		write(writer, status)
 		return
 	})
 
@@ -83,7 +93,10 @@ func write(w http.ResponseWriter, data interface{}) {
 		}
 		w.Write([]byte(dt.Error()))
 	default:
-		bt, _ := json.Marshal(data)
+		bt, err := json.Marshal(data)
+		if err != nil {
+			panic(err)
+		}
 		w.WriteHeader(200)
 		w.Write(bt)
 	}

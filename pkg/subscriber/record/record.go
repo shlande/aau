@@ -5,6 +5,7 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -27,7 +28,7 @@ func (r *Recorder) Created(_ context.Context, collection *classify.Collection) {
 }
 
 func (r *Recorder) Added(_ context.Context, detail *parser.Detail) {
-	err := r.Set(detail.Name, newRecord(detail))
+	err := r.Set(detail.Name+"-"+strconv.Itoa(detail.Episode), newRecord(detail))
 	if err != nil {
 		log.Println("无法记录数据：" + err.Error())
 	}

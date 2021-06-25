@@ -20,8 +20,10 @@ func TestJsonKV_Set(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := NewJsonKVFromFile(tt.args)
-			if err := r.Set(key, data); err != nil {
-				panic(err)
+			for i := 0; i < 10; i++ {
+				if err := r.Set(key, data); err != nil {
+					panic(err)
+				}
 			}
 		})
 	}

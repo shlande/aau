@@ -47,21 +47,24 @@ func (c *Server) StartHttp(addr string) {
 	http.Start(addr, c)
 }
 
-func (c *Server) WatchStatus(workerId string) *port.WorkerInfo {
+func (c *Server) WatchStatus(workerId string) (*port.WorkerInfo, error) {
 	worker := c.tasks[workerId]
-	return port.NewWorkerInfo(worker)
+	if worker == nil {
+		return nil, errors.New("没有找到任务")
+	}
+	return port.NewWorkerInfo(worker), nil
 }
 
-func (c *Server) Search(ctx context.Context, words string) []*port.CollectionSummary {
+func (c *Server) Search(ctx context.Context, words string) ([]*port.CollectionSummary, error) {
 	infos, err := c.Provider.Keywords(ctx, words)
 	if err != nil {
 		c.Warnln("无法获取到数据: " + err.Error())
-		return nil
+		return nil, err
 	}
 	detail, err := c.Parse(infos...)
 	if err != nil {
 		c.Warnln("解析数据出现错误: " + err.Error())
-		return nil
+		return nil, err
 	}
 	cls := classify.Classify(detail)
 	c.temp.Save(cls...)
@@ -69,7 +72,7 @@ func (c *Server) Search(ctx context.Context, words string) []*port.CollectionSum
 	for _, v := range cls {
 		summary = append(summary, port.NewCollectionSummary(v))
 	}
-	return summary
+	return summary, err
 }
 
 func (c *Server) Watch(collectionId string, updateTime time.Weekday) error {
@@ -87,12 +90,15 @@ func (c *Server) Watch(collectionId string, updateTime time.Weekday) error {
 	return nil
 }
 
-func (c *Server) GetCollection(collectinoId string) *classify.Collection {
+func (c *Server) GetCollection(collectinoId string) (*classify.Collection, error) {
 	task, err := c.temp.Get(collectinoId)
 	if errors.Is(err, store.ErrNotFound) {
-		task, _ = c.perm.Get(collectinoId)
+		task, err = c.perm.Get(collectinoId)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return task
+	return task, nil
 }
 
 func (c *Server) UnWatch(collectionId string) error {

@@ -58,7 +58,9 @@ func (w *update) retry() Machine {
 }
 
 func (w *update) Do(ctx context.Context) Machine {
-	w.sleep(ctx)
+	if w.sleep(ctx) {
+		return nil
+	}
 	infos, err := w.provider.Keywords(ctx, w.Name)
 	if err != nil {
 		w.addLog(newLog(UpdateFail, err.Error()))

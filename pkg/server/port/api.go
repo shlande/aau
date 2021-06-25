@@ -9,13 +9,13 @@ import (
 
 type Api interface {
 	// Search 通过关键词去查找信息
-	Search(ctx context.Context, words string) []*CollectionSummary
+	Search(ctx context.Context, words string) ([]*CollectionSummary, error)
 	// Watch 添加collection到监控列表中，进行同步更新
 	Watch(collectionId string, updateTime time.Weekday) error
 	// GetCollection 通过id查找collection
-	GetCollection(collectinoId string) *classify.Collection
+	GetCollection(collectinoId string) (*classify.Collection, error)
 	// WatchStatus 获取监控信息
-	WatchStatus(workerId string) *WorkerInfo
+	WatchStatus(workerId string) (*WorkerInfo, error)
 	// UnWatch 取消更新
 	UnWatch(collectionId string) error
 	// WatchList 列出所有监控的collection

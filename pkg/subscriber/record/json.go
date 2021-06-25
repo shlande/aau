@@ -68,6 +68,7 @@ func (r *JsonKV) append(key string, data []byte) (err error) {
 	if r.empty {
 		r.WriteSeeker.Seek(0, io.SeekStart)
 		_, err = r.Write([]byte("[{\"" + string(r.chunk.Bytes()) + "\":"))
+		r.empty = false
 	} else {
 		r.WriteSeeker.Seek(-1, io.SeekEnd)
 		_, err = r.Write([]byte(",{\"" + string(r.chunk.Bytes()) + "\":"))
