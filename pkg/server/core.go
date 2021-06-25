@@ -52,7 +52,7 @@ func (c *Server) GetWorker(workerId string) *port.WorkerInfo {
 	return port.NewWorkerInfo(worker)
 }
 
-func (c *Server) Search(ctx context.Context, words string) []*classify.Collection {
+func (c *Server) Search(ctx context.Context, words string) []*port.CollectionSummary {
 	infos, err := c.Provider.Keywords(ctx, words)
 	if err != nil {
 		c.Warnln("无法获取到数据: " + err.Error())
@@ -65,7 +65,11 @@ func (c *Server) Search(ctx context.Context, words string) []*classify.Collectio
 	}
 	cls := classify.Classify(detail)
 	c.temp.Save(cls...)
-	return cls
+	summary := make([]*port.CollectionSummary, 0, len(cls))
+	for _, v := range cls {
+		summary = append(summary, port.NewCollectionSummary(v))
+	}
+	return summary
 }
 
 func (c *Server) Watch(collectionId string, updateTime time.Weekday) error {
