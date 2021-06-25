@@ -2,6 +2,7 @@ package classify
 
 import (
 	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/shlande/dmhy-rss/pkg/parser"
@@ -80,7 +81,8 @@ func (c *Collection) String() string {
 }
 
 func (c *Collection) Id() string {
-	return string(md5.New().Sum([]byte(c.String())))
+	data := md5.Sum([]byte(c.String()))
+	return hex.EncodeToString(data[:])
 }
 
 func (c *Collection) GetLatest() *parser.Detail {
