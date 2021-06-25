@@ -23,7 +23,8 @@ func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd pro
 
 // 基础资源
 type Worker struct {
-	Id     string
+	Id string
+	Status
 	cf     func()
 	end    chan struct{}
 	parser parser.Parser
@@ -42,6 +43,7 @@ func (w *Worker) Run(ctx context.Context) {
 		if m == nil {
 			break
 		}
+		w.Status = m.Status()
 	}
 	w.end <- struct{}{}
 }

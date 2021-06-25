@@ -25,7 +25,7 @@ func Test_provider_Keywords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotInfos, err := provider.Keywords(ctx, tt.keywords)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Keywords() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Search() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			// 输出到文件中去

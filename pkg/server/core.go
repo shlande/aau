@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"context"
@@ -6,34 +6,49 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/shlande/dmhy-rss/pkg/provider"
+	"github.com/shlande/dmhy-rss/pkg/server/port"
+	"github.com/shlande/dmhy-rss/pkg/server/port/http"
 	"github.com/shlande/dmhy-rss/pkg/store"
 	"github.com/shlande/dmhy-rss/pkg/subscriber"
 	"github.com/shlande/dmhy-rss/pkg/worker"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
 type Server struct {
+	*logrus.Entry
 	ctx context.Context
 	parser.Parser
 	provider.Provider
 	subscriber.Subscriber
 	perm  store.Store
 	temp  store.Store
-	tasks map[string]worker.Worker
+	tasks map[string]*worker.Worker
 }
 
-func (c *Server) Keywords(ctx context.Context, words string) ([]*classify.Collection, error) {
+func (c *Server) StartHttp(addr string) {
+	http.Start(addr, c)
+}
+
+func (c *Server) GetWorker(workerId string) *port.WorkerInfo {
+	worker := c.tasks[workerId]
+	return port.NewWorkerInfo(worker)
+}
+
+func (c *Server) Search(ctx context.Context, words string) []*classify.Collection {
 	infos, err := c.Provider.Keywords(ctx, words)
 	if err != nil {
-		return nil, err
+		c.Warnln("无法获取到数据: " + err.Error())
+		return nil
 	}
 	detail, err := c.Parse(infos...)
 	if err != nil {
-		return nil, err
+		c.Warnln("解析数据出现错误: " + err.Error())
+		return nil
 	}
 	cls := classify.Classify(detail)
 	c.temp.Save(cls...)
-	return cls, nil
+	return cls
 }
 
 func (c *Server) Watch(collectionId string, updateTime time.Weekday) error {
@@ -51,6 +66,14 @@ func (c *Server) Watch(collectionId string, updateTime time.Weekday) error {
 	return nil
 }
 
+func (c *Server) GetCollection(collectinoId string) *classify.Collection {
+	task, err := c.temp.Get(collectinoId)
+	if errors.Is(err, store.ErrNotFound) {
+		task, _ = c.perm.Get(collectinoId)
+	}
+	return task
+}
+
 func (c *Server) UnWatch(collectionId string) error {
 	// 如果已经监控了
 	task, has := c.tasks[collectionId]
@@ -58,14 +81,11 @@ func (c *Server) UnWatch(collectionId string) error {
 		return errors.New("没有找到task")
 	}
 	task.Terminate()
-	delete(c.tasks, task.Id())
+	c.Info("结束监控任务：" + collectionId)
+	delete(c.tasks, collectionId)
 	return nil
 }
 
-//func (c *Server) WatchList() [] {
-//	panic("implement me")
-//}
-
-func (c *Server) Log(collectionId string) []*worker.Log {
+func (c *Server) WatchList() []*port.WorkerInfo {
 	panic("implement me")
 }
