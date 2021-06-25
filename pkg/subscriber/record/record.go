@@ -2,6 +2,7 @@ package record
 
 import (
 	"context"
+	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"log"
 	"time"
@@ -19,7 +20,13 @@ type Recorder struct {
 	KVSetter
 }
 
-func (r *Recorder) Added(ctx context.Context, detail *parser.Detail) {
+func (r *Recorder) Created(_ context.Context, collection *classify.Collection) {
+	for _, v := range collection.Items {
+		r.Added(nil, v)
+	}
+}
+
+func (r *Recorder) Added(_ context.Context, detail *parser.Detail) {
 	err := r.Set(detail.Name, newRecord(detail))
 	if err != nil {
 		log.Println("无法记录数据：" + err.Error())

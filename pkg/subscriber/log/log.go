@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/log"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/sirupsen/logrus"
@@ -13,6 +14,10 @@ func NewLog() *Log {
 
 type Log struct {
 	*logrus.Entry
+}
+
+func (l *Log) Created(_ context.Context, collection *classify.Collection) {
+	l.Logger.Infoln("新的监控添加 id:", collection.Id(), "name:", collection.Name)
 }
 
 func (l *Log) Added(_ context.Context, detail *parser.Detail) {

@@ -94,6 +94,11 @@ func (c *Collection) GetLatest() *parser.Detail {
 	return nil
 }
 
+func GetCollectionId(detail *parser.Detail) string {
+	data := md5.Sum([]byte(fmt.Sprintf("%v-%v-%v-%v-%v", detail.Category, detail.Name, detail.Fansub, detail.Quality, detail.Language)))
+	return hex.EncodeToString(data[:])
+}
+
 // diff find the // of new and old.
 func diff(old []string, new []string) []string {
 	var res []string

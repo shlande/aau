@@ -14,8 +14,8 @@ type Api interface {
 	Watch(collectionId string, updateTime time.Weekday) error
 	// GetCollection 通过id查找collection
 	GetCollection(collectinoId string) *classify.Collection
-	// GetWorker 获取worker信息
-	GetWorker(workerId string) *WorkerInfo
+	// WatchStatus 获取监控信息
+	WatchStatus(workerId string) *WorkerInfo
 	// UnWatch 取消更新
 	UnWatch(collectionId string) error
 	// WatchList 列出所有监控的collection

@@ -47,7 +47,7 @@ func (c *Server) StartHttp(addr string) {
 	http.Start(addr, c)
 }
 
-func (c *Server) GetWorker(workerId string) *port.WorkerInfo {
+func (c *Server) WatchStatus(workerId string) *port.WorkerInfo {
 	worker := c.tasks[workerId]
 	return port.NewWorkerInfo(worker)
 }

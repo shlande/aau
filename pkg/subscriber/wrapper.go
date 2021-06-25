@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 )
 
@@ -11,6 +12,12 @@ func Combine(subs ...Subscriber) *wrapper {
 
 type wrapper struct {
 	subs []Subscriber
+}
+
+func (w *wrapper) Created(ctx context.Context, collection *classify.Collection) {
+	for _, v := range w.subs {
+		v.Created(ctx, collection)
+	}
 }
 
 func (w *wrapper) Added(ctx context.Context, detail *parser.Detail) {

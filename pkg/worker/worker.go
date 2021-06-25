@@ -37,6 +37,8 @@ type Worker struct {
 
 func (w *Worker) Run(ctx context.Context) {
 	ctx, w.cf = context.WithCancel(ctx)
+	// 首先尝试把内容添加到store中
+	w.subscriber.Created(ctx, w.Collection)
 	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(0)}
 	for {
 		m = m.Do(ctx)
@@ -58,7 +60,7 @@ func (w *Worker) addLog(log *Log) {
 }
 
 func (w *Worker) Log() []*Log {
-	panic("implement me")
+	return w.logs
 }
 
 func (w *Worker) Stop() {

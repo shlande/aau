@@ -122,5 +122,5 @@ func (w *update) sleep(ctx context.Context) (ctxDone bool) {
 }
 
 func getNextUpdateTime(weekday time.Weekday) time.Duration {
-	return time.Second
+	return time.Hour
 }
