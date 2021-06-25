@@ -17,7 +17,7 @@ func BuildHandler(server port.Api) http.Handler {
 	router := mux.NewRouter()
 	// logger := log.NewEntry("http")
 
-	router.Get("/search").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/search", func(writer http.ResponseWriter, request *http.Request) {
 		keywords := request.URL.Query().Get("keywords")
 		if len(keywords) < 3 {
 			err := fmt.Errorf("%w %v", ErrBadRequest, "关键词长度必须大于三")

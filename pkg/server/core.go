@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/shlande/dmhy-rss/pkg/classify"
+	"github.com/shlande/dmhy-rss/pkg/log"
 	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/shlande/dmhy-rss/pkg/provider"
 	"github.com/shlande/dmhy-rss/pkg/server/port"
@@ -14,6 +15,22 @@ import (
 	"github.com/sirupsen/logrus"
 	"time"
 )
+
+func NewServer(parser2 parser.Parser,
+	provider2 provider.Provider,
+	subscriber2 subscriber.Subscriber,
+	perm store.Store, temp store.Store) *Server {
+	return &Server{
+		Entry:      log.NewEntry("server"),
+		ctx:        context.Background(),
+		Parser:     parser2,
+		Provider:   provider2,
+		Subscriber: subscriber2,
+		perm:       perm,
+		temp:       temp,
+		tasks:      make(map[string]*worker.Worker),
+	}
+}
 
 type Server struct {
 	*logrus.Entry
