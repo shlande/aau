@@ -39,7 +39,7 @@ func (w *Worker) Run(ctx context.Context) {
 	ctx, w.cf = context.WithCancel(ctx)
 	// 首先尝试把内容添加到store中
 	w.subscriber.Created(ctx, w.Collection)
-	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(0)}
+	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(getNextUpdateTime(w.UpdateTime, w.Collection.LastUpdate))}
 	for {
 		m = m.Do(ctx)
 		if m == nil {

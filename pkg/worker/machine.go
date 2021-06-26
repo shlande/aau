@@ -102,9 +102,9 @@ func (w *update) next() Machine {
 func (w *update) getTimer() *time.Timer {
 	timer := w.Timer
 	if timer == nil {
-		timer = time.NewTimer(getNextUpdateTime(w.UpdateTime))
+		timer = time.NewTimer(getNextUpdateTime(w.UpdateTime, time.Now()))
 	} else {
-		timer.Reset(getNextUpdateTime(w.UpdateTime))
+		timer.Reset(getNextUpdateTime(w.UpdateTime, time.Now()))
 	}
 	return timer
 }
@@ -123,6 +123,13 @@ func (w *update) sleep(ctx context.Context) (ctxDone bool) {
 	}
 }
 
-func getNextUpdateTime(weekday time.Weekday) time.Duration {
-	return time.Hour
+func getNextUpdateTime(weekday time.Weekday, lastUpdate time.Time) time.Duration {
+	// 获取当前是第几周
+	var day int
+	if lastUpdate.Weekday() >= weekday {
+		day = int(weekday + 7 - lastUpdate.Weekday())
+	} else {
+		day = int(weekday - lastUpdate.Weekday())
+	}
+	return time.Date(lastUpdate.Year(), lastUpdate.Month(), lastUpdate.Day()+day, 0, 0, 0, 0, time.Local).Sub(lastUpdate)
 }
