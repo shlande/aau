@@ -18,6 +18,7 @@ var (
 	infoKey    = []byte("info")
 	episodeKey = []byte("episode")
 	workerKey  = []byte("worker")
+	logKey     = []byte("log")
 )
 
 func New(path string) (bt *Bolt, err error) {
@@ -101,7 +102,7 @@ func (b *Bolt) getInfo(tx *bolt.Tx, key string, info *Info) error {
 func (b *Bolt) cleanup(tx *bolt.Tx, err error) error {
 	if err == nil {
 		if err = tx.Commit(); err != nil {
-			if tx.Writable() && errors.Is(bolt.ErrTxNotWritable, err) {
+			if !tx.Writable() && errors.Is(bolt.ErrTxNotWritable, err) {
 				return nil
 			}
 			b.Errorln("commit失败: ", err)
@@ -138,7 +139,8 @@ func (b *Bolt) Get(id string) (*classify.Collection, error) {
 		b.Errorln(err)
 		return nil, err
 	}
-	if err := b.getInfo(tx, id, info); err != nil {
+	err = b.getInfo(tx, id, info)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return nil, err
 	}
 	var detail *parser.Detail
@@ -162,10 +164,87 @@ func (b *Bolt) Get(id string) (*classify.Collection, error) {
 	return cl, nil
 }
 
-func (b *Bolt) SaveWorker(worker ...*worker.Worker) error {
-	panic("implement me")
+func (b *Bolt) SaveWorker(worker ...*worker.Worker) (err error) {
+	tx, err := b.Begin(true)
+	defer func() {
+		err = b.cleanup(tx, err)
+	}()
+	if err != nil {
+		return err
+	}
+	for _, v := range worker {
+		err = b.setWorkerStatus(tx, v.Id, NewWorker(v))
+		if err != nil {
+			return err
+		}
+		// FIXME:虽然worker每次更新的时候都同步了信息，但是最好还是检查一下
+	}
+	return nil
 }
 
-func (b *Bolt) GetWorker(workerId string) *worker.Worker {
-	panic("implement me")
+func (b *Bolt) setLog(tx *bolt.Tx, key string, logs []*worker.Log) error {
+	for i, v := range logs {
+		key := key + "." + strconv.Itoa(i)
+		err := tx.Bucket(logKey).Put([]byte(key), encodeLog(v))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *Bolt) getLog(tx *bolt.Tx, key string, from, to int) (logs []*worker.Log, err error) {
+	if to-from > 0 {
+		logs = make([]*worker.Log, 0, to-from)
+	}
+	for i := from; i < to; i++ {
+		key := key + "." + strconv.Itoa(i)
+		data := tx.Bucket(logKey).Get([]byte(key))
+		if data == nil {
+			return nil, store.ErrNotFound
+		}
+		var log = &worker.Log{}
+		err := decodeLog(data, log)
+		if err != nil {
+			return nil, fmt.Errorf("%w 无法加载数据 key:%v err:%v", store.ErrOperation, key, err.Error())
+		}
+		logs = append(logs, log)
+	}
+	return logs, nil
+}
+
+func (b *Bolt) getWorkerStatus(tx *bolt.Tx, key string, wk *Worker) error {
+	data := tx.Bucket(workerKey).Get([]byte(key))
+	if data == nil {
+		return store.ErrNotFound
+	}
+	return decodeWorker(data, wk)
+}
+
+func (b *Bolt) setWorkerStatus(tx *bolt.Tx, key string, wk *Worker) error {
+	return tx.Bucket(workerKey).Put([]byte(key), encodeWorker(wk))
+}
+
+func (b *Bolt) GetWorker(workerId string) (wkr *worker.RecoverHelper, err error) {
+	cl, err := b.Get(workerId)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := b.Begin(false)
+	defer func() {
+		err = b.cleanup(tx, err)
+	}()
+	if err != nil {
+		return nil, err
+	}
+	var wk = &Worker{}
+	err = b.getWorkerStatus(tx, workerId, wk)
+	if err != nil {
+		return nil, err
+	}
+	logs, err := b.getLog(tx, workerId, 0, wk.Logs)
+	if err != nil {
+		return nil, err
+	}
+	return worker.Recover(wk.Status, cl, wk.UpdateTime, logs), nil
 }

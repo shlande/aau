@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/shlande/dmhy-rss/pkg/classify"
 	"github.com/shlande/dmhy-rss/pkg/parser"
+	"github.com/shlande/dmhy-rss/pkg/worker"
 	"time"
 	"unsafe"
 )
@@ -58,6 +59,54 @@ func (e *Episode) Encode() []byte {
 
 func decodeEpisode(data []byte, ep *Episode) error {
 	err := json.Unmarshal(data, ep)
+	if err != nil {
+		panic(err)
+	}
+	return nil
+}
+
+func NewWorker(wk *worker.Worker) *Worker {
+	return &Worker{
+		Id:         wk.Id,
+		Status:     wk.Status,
+		UpdateTime: wk.UpdateTime,
+		Logs:       len(wk.Log()),
+	}
+}
+
+type Worker struct {
+	Id string
+	worker.Status
+	UpdateTime time.Weekday
+	Logs       int
+}
+
+func encodeWorker(worker *Worker) []byte {
+	b, err := json.Marshal(worker)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func decodeWorker(data []byte, worker *Worker) error {
+	err := json.Unmarshal(data, worker)
+	if err != nil {
+		panic(err)
+	}
+	return nil
+}
+
+func encodeLog(log *worker.Log) []byte {
+	b, err := json.Marshal(log)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func decodeLog(data []byte, log *worker.Log) error {
+	err := json.Unmarshal(data, log)
 	if err != nil {
 		panic(err)
 	}

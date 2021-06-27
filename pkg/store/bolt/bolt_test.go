@@ -3,8 +3,10 @@ package bolt
 import (
 	"encoding/json"
 	"github.com/shlande/dmhy-rss/pkg/classify"
+	worker2 "github.com/shlande/dmhy-rss/pkg/worker"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var testJsonCollection = `{
@@ -147,5 +149,37 @@ func TestBolt_Save(t *testing.T) {
 				t.Errorf("not equal, %v %v", c, tt.collection[0])
 			}
 		})
+	}
+}
+
+func TestBolt_SaveWorker(t *testing.T) {
+	var cl = &classify.Collection{}
+	err := json.Unmarshal([]byte(testJsonCollection), cl)
+	if err != nil {
+		panic(err)
+	}
+	worker := worker2.NewWorker(cl, time.Wednesday, nil, nil, nil)
+	kv, err := New("./test.db")
+	if err != nil {
+		panic(err)
+	}
+	// 先保存collection的内容
+	err = kv.Save(cl)
+	if err != nil {
+		panic(err)
+	}
+	err = kv.SaveWorker(worker)
+	if err != nil {
+		panic(err)
+	}
+	builder, err := kv.GetWorker(worker.Id)
+	if err != nil {
+		panic(err)
+	}
+	wok2 := builder.Recover(nil, nil, nil)
+
+	// 这里不能通过是因为结构体中有chan，其余是正常的
+	if !reflect.DeepEqual(worker, wok2) {
+		panic("not equal")
 	}
 }

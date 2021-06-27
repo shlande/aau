@@ -9,6 +9,26 @@ import (
 	"time"
 )
 
+func Recover(status Status, collection *classify.Collection, updateTime time.Weekday, logs []*Log) *RecoverHelper {
+	return &RecoverHelper{
+		Status:     status,
+		Id:         collection.Id(),
+		Collection: collection,
+		UpdateTime: updateTime,
+		logs:       logs,
+	}
+}
+
+type RecoverHelper Worker
+
+func (r *RecoverHelper) Recover(pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *Worker {
+	r.provider = pvd
+	r.parser = ps
+	r.subscriber = sub
+	r.end = make(chan struct{}, 1)
+	return (*Worker)(r)
+}
+
 func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *Worker {
 	return &Worker{
 		parser:     ps,
