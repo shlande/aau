@@ -39,7 +39,7 @@ func (p provider) Keywords(ctx context.Context, keywords string) (infos []*pvd.I
 		if len(i.Enclosures) > 0 {
 			info.MagnetUrl = i.Enclosures[0].URL
 		}
-		info.CreateTime = i.PublishedParsed
+		info.CreateTime = *i.PublishedParsed
 		infos = append(infos, info)
 	}
 	return

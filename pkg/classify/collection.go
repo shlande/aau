@@ -20,7 +20,7 @@ func NewCollection(item *parser.Detail) *Collection {
 		SubType:    item.SubType,
 		Language:   item.Language,
 		Latest:     item.Episode,
-		LastUpdate: *item.CreateTime,
+		LastUpdate: item.CreateTime,
 		Items:      []*parser.Detail{item},
 	}
 }
@@ -52,8 +52,18 @@ func (c *Collection) Add(item *parser.Detail) error {
 	}
 	// add info
 	c.Fansub = append(c.Fansub, diff(c.Fansub, item.Fansub)...)
+	// 排序插入
 	c.Items = append(c.Items, item)
-	c.LastUpdate = time.Now()
+	for i := len(c.Items) - 1; i > 0; i-- {
+		if c.Items[i-1].Episode > c.Items[i].Episode {
+			c.Items[i], c.Items[i-1] = c.Items[i-1], c.Items[i]
+			continue
+		}
+		break
+	}
+	if c.LastUpdate.Before(item.CreateTime) {
+		c.LastUpdate = item.CreateTime
+	}
 	if c.Latest < item.Episode {
 		c.Latest = item.Episode
 	}
@@ -61,6 +71,9 @@ func (c *Collection) Add(item *parser.Detail) error {
 }
 
 func (c *Collection) compare(item *parser.Detail) bool {
+	if item == nil {
+		return false
+	}
 	return c.Language == item.Language &&
 		c.SubType == item.SubType &&
 		c.Quality == item.Quality &&

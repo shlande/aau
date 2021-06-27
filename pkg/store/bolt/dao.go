@@ -1,4 +1,4 @@
-package blot
+package bolt
 
 import (
 	"encoding/json"
