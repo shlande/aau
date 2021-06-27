@@ -164,6 +164,29 @@ func (b *Bolt) Get(id string) (*classify.Collection, error) {
 	return cl, nil
 }
 
+func (b *Bolt) ListWorker() (hlps []*worker.RecoverHelper, err error) {
+	tx, err := b.DB.Begin(false)
+	defer func() {
+		err = b.cleanup(tx, err)
+	}()
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	// TODO:优化一下
+	tx.Bucket(workerKey).ForEach(func(k, v []byte) error {
+		ids = append(ids, string(k))
+		return nil
+	})
+	for _, v := range ids {
+		wk, err := b.GetWorker(v)
+		if err != nil {
+			return nil, err
+		}
+		hlps = append(hlps, wk)
+	}
+	return
+}
 func (b *Bolt) SaveWorker(worker ...*worker.Worker) (err error) {
 	tx, err := b.Begin(true)
 	defer func() {

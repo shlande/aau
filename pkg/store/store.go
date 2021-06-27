@@ -9,6 +9,7 @@ import (
 type Store interface {
 	Save(collection ...*classify.Collection) error
 	Get(id string) (*classify.Collection, error)
-	SaveWorker(worker ...worker.Worker) error
-	GetWorker(collectionId string) (worker.Worker, error)
+	SaveWorker(worker ...*worker.Worker) error
+	GetWorker(collectionId string) (*worker.RecoverHelper, error)
+	ListWorker() ([]*worker.RecoverHelper, error)
 }

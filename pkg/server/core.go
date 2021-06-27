@@ -43,6 +43,10 @@ type Server struct {
 	tasks map[string]*worker.Worker
 }
 
+func (c *Server) Load() {
+	panic("impl me")
+}
+
 func (c *Server) StartHttp(addr string) {
 	http.Start(addr, c)
 }
