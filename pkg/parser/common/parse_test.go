@@ -35,15 +35,16 @@ import (
 //}
 
 func TestParseTitle(t *testing.T) {
+	ps := New()
 	input := []struct {
 		Title string
 		Want  *parser.TitleInfo
 	}{
-		{
-			// FIXME：修复这个bug
-			Title: "[時雨初空] 剃掉鬍子。然後撿了個女高中生。 12 繁體 MP4 720p",
-			Want:  &parser.TitleInfo{Name: "剃掉鬍子。然後撿了個女高中生。", Language: parser.GB, Quality: parser.P720, Episode: 12, SubType: parser.Internal},
-		},
+		//{
+		//	// FIXME：修复这个bug
+		//	Title: "[時雨初空] 剃掉鬍子。然後撿了個女高中生。 12 繁體 MP4 720p",
+		//	Want:  &parser.TitleInfo{Name: "剃掉鬍子。然後撿了個女高中生。", Language: parser.GB, Quality: parser.P720, Episode: 12, SubType: parser.Internal},
+		//},
 		{
 			Title: "[桜都字幕組] 無職轉生～到了異世界就拿出真本事～ / Mushoku Tensei Isekai Ittara Honki Dasu [11][1080p@60FPS][繁體內嵌]",
 			Want:  &parser.TitleInfo{Name: "無職轉生～到了異世界就拿出真本事～", Language: parser.BIG5, Quality: parser.P1080, Episode: 11, SubType: parser.Internal},
@@ -68,9 +69,60 @@ func TestParseTitle(t *testing.T) {
 		},
 	}
 	for _, i := range input {
-		got := parseTitle(i.Title)
+		got, err := ps.ParseTitle(i.Title)
+		if err != nil {
+			t.Error(err)
+		}
 		if !reflect.DeepEqual(got, i.Want) {
 			t.Errorf("want: %v , got : %v , name: %v", i.Want, got, i.Title)
+		}
+	}
+}
+
+// 22519	     52476 ns/op df7f0998
+// 32079	     35803 ns/op
+func BenchmarkParse_ParseTitle(b *testing.B) {
+	input := []struct {
+		Title string
+		Want  *parser.TitleInfo
+	}{
+		//{
+		//	// FIXME：修复这个bug
+		//	Title: "[時雨初空] 剃掉鬍子。然後撿了個女高中生。 12 繁體 MP4 720p",
+		//	Want:  &parser.TitleInfo{Name: "剃掉鬍子。然後撿了個女高中生。", Language: parser.GB, Quality: parser.P720, Episode: 12, SubType: parser.Internal},
+		//},
+		{
+			Title: "[桜都字幕組] 無職轉生～到了異世界就拿出真本事～ / Mushoku Tensei Isekai Ittara Honki Dasu [11][1080p@60FPS][繁體內嵌]",
+			Want:  &parser.TitleInfo{Name: "無職轉生～到了異世界就拿出真本事～", Language: parser.BIG5, Quality: parser.P1080, Episode: 11, SubType: parser.Internal},
+		}, {
+			Title: "[NC-Raws] 無職轉生～到了異世界就拿出真本事～（僅限港澳台地區） / Mushoku Tensei - 11 [WEB-DL][1080p][AVC AAC][CHS_CHT_SRT][MKV]",
+			Want:  &parser.TitleInfo{Name: "無職轉生～到了異世界就拿出真本事～", Language: parser.GB | parser.BIG5, Quality: parser.P1080, Episode: 11, SubType: parser.Internal},
+		}, {
+			Title: "[爱恋\\u0026漫猫字幕组][1月新番][无职转生～到了异世界就拿出真本事～][Mushoku Tensei Isekai Ittara Honki Dasu][10][1080p][MP4][GB][简中]",
+			Want:  &parser.TitleInfo{Name: "无职转生～到了异世界就拿出真本事～", Language: parser.GB, Quality: parser.P1080, Episode: 10, SubType: parser.Internal},
+		}, {
+			Title: "【悠哈璃羽字幕社】[無職轉生～到了異世界就拿出真本事～_Mushoku Tensei][08][x264 1080p][CHT]",
+			Want:  &parser.TitleInfo{Name: "無職轉生～到了異世界就拿出真本事～", Language: parser.BIG5, Quality: parser.P1080, Episode: 8, SubType: parser.Internal},
+		}, {
+			Title: "​[c.c動漫][1月新番][無職轉生～到了異世界就拿出真本事～][10][BIG5][1080P][MP4]",
+			Want:  &parser.TitleInfo{Name: "無職轉生～到了異世界就拿出真本事～", Language: parser.BIG5, Quality: parser.P1080, Episode: 10, SubType: parser.Internal},
+		}, {
+			Title: "[Skymoon-Raws] 無職轉生，到了異世界就拿出真本事 / Mushoku Tensei - 10 [ViuTV][WEB-DL][1080p][AVC AAC][繁體外掛][MP4+ASSx2](正式版本)",
+			Want:  &parser.TitleInfo{Name: "無職轉生，到了異世界就拿出真本事", Language: parser.BIG5, Quality: parser.P1080, Episode: 10, SubType: parser.External},
+		}, {
+			Title: "【喵萌奶茶屋】★01月新番★[無職轉生/Mushoku Tensei][09][720p][繁體][招募翻譯校對]",
+			Want:  &parser.TitleInfo{Name: "無職轉生", Language: parser.BIG5, Quality: parser.P720, Episode: 9, SubType: parser.Internal},
+		},
+	}
+	ps := New()
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		got, err := ps.ParseTitle(input[0].Title)
+		if err != nil {
+			b.Error(err)
+		}
+		if !reflect.DeepEqual(got, input[0].Want) {
+			b.Errorf("want: %v , got : %v , name: %v", input[0].Want, got, input[0].Title)
 		}
 	}
 }

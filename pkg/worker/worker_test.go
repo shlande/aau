@@ -13,7 +13,7 @@ import (
 func TestWorker(t *testing.T) {
 	ctx := context.Background()
 	// 首先尝试获取一个detail
-	parser := common.Parse{}
+	parser := common.New()
 	provider := dmhy.NewProvider()
 	var dl subscriber.Subscriber = nil
 	info, err := provider.Keywords(ctx, "无职转生")

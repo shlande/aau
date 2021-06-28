@@ -29,7 +29,7 @@ func main() {
 }
 
 func buildParser() parser.Parser {
-	return common.Parse{}
+	return common.New()
 }
 
 func buildSubs() *subscriber.Multi {
