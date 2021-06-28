@@ -21,12 +21,14 @@ func Recover(status Status, collection *classify.Collection, updateTime time.Wee
 
 type RecoverHelper Worker
 
-func (r *RecoverHelper) Recover(pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *Worker {
+func (r *RecoverHelper) Recover(ctx context.Context, pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *Worker {
 	r.provider = pvd
 	r.parser = ps
 	r.subscriber = sub
 	r.end = make(chan struct{}, 1)
-	return (*Worker)(r)
+	wk := (*Worker)(r)
+	go wk.run(ctx)
+	return wk
 }
 
 func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd provider.Provider, ps parser.Parser, sub subscriber.Subscriber) *Worker {
@@ -59,6 +61,9 @@ func (w *Worker) Run(ctx context.Context) {
 	ctx, w.cf = context.WithCancel(ctx)
 	// 首先尝试把内容添加到store中
 	w.subscriber.Created(ctx, w.Collection)
+}
+
+func (w *Worker) run(ctx context.Context) {
 	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(getNextUpdateTime(w.UpdateTime, w.Collection.LastUpdate))}
 	for {
 		m = m.Do(ctx)

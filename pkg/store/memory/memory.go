@@ -14,6 +14,18 @@ type Store struct {
 	cls map[string]*classify.Collection
 }
 
+func (s *Store) SaveWorker(worker ...*worker.Worker) error {
+	panic("memory不支持保存worker信息")
+}
+
+func (s *Store) GetWorker(collectionId string) (*worker.RecoverHelper, error) {
+	panic("memory不支持保存worker信息")
+}
+
+func (s *Store) ListWorker() ([]*worker.RecoverHelper, error) {
+	panic("memory不支持保存worker信息")
+}
+
 func (s *Store) Save(collection ...*classify.Collection) error {
 	for _, v := range collection {
 		s.cls[v.Id()] = v
@@ -27,12 +39,4 @@ func (s *Store) Get(id string) (*classify.Collection, error) {
 		return nil, store.ErrNotFound
 	}
 	return cl, nil
-}
-
-func (s *Store) SaveWorker(worker ...worker.Worker) error {
-	panic("memory不支持保存worker信息")
-}
-
-func (s *Store) GetWorker(collectionId string) (worker.Worker, error) {
-	panic("memory不支持保存worker信息")
 }

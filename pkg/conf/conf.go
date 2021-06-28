@@ -1,5 +1,7 @@
 package conf
 
+import "path"
+
 type Config struct {
 	*Http
 	*Log
@@ -12,6 +14,10 @@ type Http struct {
 
 type Data struct {
 	OutputDir string
+}
+
+func (d *Data) OutputName() string {
+	return path.Join(d.OutputDir, "data.db")
 }
 
 type Log struct {

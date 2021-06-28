@@ -130,53 +130,41 @@ func (b *Bolt) setEpisode(tx *bolt.Tx, key string, episode *Episode) (err error)
 func (b *Bolt) Get(id string) (*classify.Collection, error) {
 	var cl = &classify.Collection{}
 	info := NewInfo(cl)
-	tx, err := b.DB.Begin(false)
-	defer func() {
-		err = b.cleanup(tx, err)
-	}()
-	if err != nil {
-		err = fmt.Errorf("%w:%v", ErrOpenTx, err)
-		b.Errorln(err)
-		return nil, err
-	}
-	err = b.getInfo(tx, id, info)
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		return nil, err
-	}
 	var detail *parser.Detail
 	var episode *Episode
-	for i := 0; i <= info.Latest; i++ {
-		if err == nil {
-			detail = &parser.Detail{TitleInfo: &parser.TitleInfo{}, Info: &provider.Info{}}
-			episode = NewEpisode(detail)
-		}
-		key := id + "." + strconv.FormatInt(int64(i), 10)
-		err := b.getEpisode(tx, key, episode)
-		if err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				continue
-			} else {
-				return nil, err
+	err := b.DB.View(func(tx *bolt.Tx) (err error) {
+		for i := 0; i <= info.Latest; i++ {
+			if err == nil {
+				detail = &parser.Detail{TitleInfo: &parser.TitleInfo{}, Info: &provider.Info{}}
+				episode = NewEpisode(detail)
 			}
+			key := id + "." + strconv.FormatInt(int64(i), 10)
+			err = b.getEpisode(tx, key, episode)
+			if err != nil {
+				if errors.Is(err, store.ErrNotFound) {
+					continue
+				} else {
+					return err
+				}
+			}
+			_ = cl.Add(detail)
 		}
-		_ = cl.Add(detail)
+		return b.getInfo(tx, id, info)
+	})
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, err
 	}
 	return cl, nil
 }
 
 func (b *Bolt) ListWorker() (hlps []*worker.RecoverHelper, err error) {
-	tx, err := b.DB.Begin(false)
-	defer func() {
-		err = b.cleanup(tx, err)
-	}()
-	if err != nil {
-		return nil, err
-	}
 	var ids []string
-	// TODO:优化一下
-	tx.Bucket(workerKey).ForEach(func(k, v []byte) error {
-		ids = append(ids, string(k))
-		return nil
+	err = b.DB.View(func(tx *bolt.Tx) error {
+		// TODO:优化一下
+		return tx.Bucket(workerKey).ForEach(func(k, v []byte) error {
+			ids = append(ids, string(k))
+			return nil
+		})
 	})
 	for _, v := range ids {
 		wk, err := b.GetWorker(v)
@@ -187,6 +175,7 @@ func (b *Bolt) ListWorker() (hlps []*worker.RecoverHelper, err error) {
 	}
 	return
 }
+
 func (b *Bolt) SaveWorker(worker ...*worker.Worker) (err error) {
 	tx, err := b.Begin(true)
 	defer func() {
@@ -253,21 +242,15 @@ func (b *Bolt) GetWorker(workerId string) (wkr *worker.RecoverHelper, err error)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := b.Begin(false)
-	defer func() {
-		err = b.cleanup(tx, err)
-	}()
-	if err != nil {
-		return nil, err
-	}
+	var logs []*worker.Log
 	var wk = &Worker{}
-	err = b.getWorkerStatus(tx, workerId, wk)
-	if err != nil {
-		return nil, err
-	}
-	logs, err := b.getLog(tx, workerId, 0, wk.Logs)
-	if err != nil {
-		return nil, err
-	}
+	err = b.View(func(tx *bolt.Tx) error {
+		err = b.getWorkerStatus(tx, workerId, wk)
+		if err != nil {
+			return err
+		}
+		logs, err = b.getLog(tx, workerId, 0, wk.Logs)
+		return err
+	})
 	return worker.Recover(wk.Status, cl, wk.UpdateTime, logs), nil
 }

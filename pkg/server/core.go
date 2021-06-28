@@ -11,6 +11,7 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/server/port/http"
 	"github.com/shlande/dmhy-rss/pkg/store"
 	"github.com/shlande/dmhy-rss/pkg/subscriber"
+	"github.com/shlande/dmhy-rss/pkg/subscriber/state"
 	"github.com/shlande/dmhy-rss/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -18,18 +19,21 @@ import (
 
 func NewServer(parser2 parser.Parser,
 	provider2 provider.Provider,
-	subscriber2 subscriber.Subscriber,
+	subscriber2 *subscriber.Multi,
 	perm store.Store, temp store.Store) *Server {
-	return &Server{
-		Entry:      log.NewEntry("server"),
-		ctx:        context.Background(),
-		Parser:     parser2,
-		Provider:   provider2,
-		Subscriber: subscriber2,
-		perm:       perm,
-		temp:       temp,
-		tasks:      make(map[string]*worker.Worker),
+	server := &Server{
+		Entry:    log.NewEntry("server"),
+		ctx:      context.Background(),
+		Parser:   parser2,
+		Provider: provider2,
+		Multi:    subscriber2,
+		perm:     perm,
+		temp:     temp,
+		tasks:    make(map[string]*worker.Worker),
 	}
+	server.AddSubscriber(state.New(perm, server.GetWorker))
+	server.Load()
+	return server
 }
 
 type Server struct {
@@ -37,18 +41,38 @@ type Server struct {
 	ctx context.Context
 	parser.Parser
 	provider.Provider
-	subscriber.Subscriber
+	*subscriber.Multi
 	perm  store.Store
 	temp  store.Store
 	tasks map[string]*worker.Worker
 }
 
+func (c *Server) GetWorker(id string) (*worker.Worker, error) {
+	wk, has := c.tasks[id]
+	if !has {
+		return nil, errors.New("没有找到worker")
+	}
+	return wk, nil
+}
+
 func (c *Server) Load() {
-	panic("impl me")
+	workers, err := c.perm.ListWorker()
+	if err != nil {
+		panic(err)
+	}
+	for _, v := range workers {
+		w := v.Recover(c.ctx, c.Provider, c.Parser, c.Multi)
+		c.Infoln("加载worker id:", w.Id)
+		c.tasks[w.Id] = w
+	}
 }
 
 func (c *Server) StartHttp(addr string) {
 	http.Start(addr, c)
+}
+
+func (c *Server) AddSubscriber(subscriber2 subscriber.Subscriber) {
+	c.Multi.Combine(subscriber2)
 }
 
 func (c *Server) WatchStatus(workerId string) (*port.WorkerInfo, error) {
@@ -88,7 +112,7 @@ func (c *Server) Watch(collectionId string, updateTime time.Weekday) error {
 	if _, has := c.tasks[collectionId]; has {
 		return errors.New("已经监控过了")
 	}
-	task := worker.NewWorker(cl, updateTime, c.Provider, c.Parser, c.Subscriber)
+	task := worker.NewWorker(cl, updateTime, c.Provider, c.Parser, c.Multi)
 	go task.Run(c.ctx)
 	c.tasks[task.Id] = task
 	return nil

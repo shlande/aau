@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/shlande/dmhy-rss/pkg/classify"
 	worker2 "github.com/shlande/dmhy-rss/pkg/worker"
@@ -176,10 +177,48 @@ func TestBolt_SaveWorker(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	wok2 := builder.Recover(nil, nil, nil)
+	wok2 := builder.Recover(context.Background(), nil, nil, nil)
 
 	// 这里不能通过是因为结构体中有chan，其余是正常的
 	if !reflect.DeepEqual(worker, wok2) {
 		panic("not equal")
+	}
+}
+
+func TestBolt_ListWorker(t *testing.T) {
+	var cl = &classify.Collection{}
+	err := json.Unmarshal([]byte(testJsonCollection), cl)
+	if err != nil {
+		panic(err)
+	}
+	worker := worker2.NewWorker(cl, time.Wednesday, nil, nil, nil)
+	kv, err := New("./test.db")
+	if err != nil {
+		panic(err)
+	}
+	// 先保存collection的内容
+	err = kv.Save(cl)
+	if err != nil {
+		panic(err)
+	}
+	err = kv.SaveWorker(worker)
+	if err != nil {
+		panic(err)
+	}
+	wl, err := kv.ListWorker()
+	if len(wl) == 0 {
+		panic("len0")
+	}
+	err = kv.Save(cl)
+	if err != nil {
+		panic(err)
+	}
+	err = kv.SaveWorker(worker)
+	if err != nil {
+		panic(err)
+	}
+	wl, err = kv.ListWorker()
+	if len(wl) == 0 {
+		panic("len0")
 	}
 }
