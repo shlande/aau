@@ -69,6 +69,11 @@ func (p Parse) Parse(title string) (*Result, error) {
 	if external {
 		sub = data.External
 	}
+
+	var tp = data.Episode
+	if episode == 0 {
+		tp = data.Full
+	}
 	return &Result{
 		Name: name,
 		// 当前不能区分分类
@@ -77,7 +82,8 @@ func (p Parse) Parse(title string) (*Result, error) {
 			Quality:  quality,
 			Language: lan,
 			SubType:  sub,
-			Type:     0,
+			// TODO:完成检测类型
+			Type: tp, // ParseCategory(),
 		},
 		Episode: int(episode),
 	}, nil
@@ -139,7 +145,26 @@ func parseName(title string, keep bool) string {
 func parseFansub(title string) []string {
 	// 查找第一个右括号书名号位置,这个位置一般是字幕组名称截止的位置
 	begin := regexp.MustCompile(`\]|】`).FindStringIndex(title)
+	start := regexp.MustCompile(`\[|【`).FindStringIndex(title)
 	// 删除掉字幕组
-	title = title[:begin[0]]
+	title = title[start[1]:begin[0]]
 	return []string{title}
+}
+
+func ParseCategory(title string) data.Type {
+	//if title == "動畫" {
+	//	return data.Episode
+	//}
+	//if title == "季度全集" {
+	//	return data.Full
+	//}
+	return data.UnknownType
+}
+
+type Result struct {
+	Name string
+	// 分类
+	data.Metadata
+	// 集数
+	Episode int
 }

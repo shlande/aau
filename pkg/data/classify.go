@@ -12,7 +12,8 @@ func classify(items []*Source) map[string]*Collection {
 	var res = make(map[string]*Collection)
 	for _, i := range items {
 		// 先尝试创建cl
-		cl := NewCollection(i)
+		//cl := NewCollection(i)
+		cl := NewCollection(nil, Metadata{})
 		id := cl.Id()
 		ocl, has := res[id]
 		if !has {
