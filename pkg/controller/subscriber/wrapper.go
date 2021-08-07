@@ -2,8 +2,7 @@ package subscriber
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	"github.com/shlande/dmhy-rss/pkg/parser"
+	"github.com/shlande/dmhy-rss/pkg/data"
 )
 
 func Combine(subs ...Subscriber) *Multi {
@@ -14,13 +13,13 @@ type Multi struct {
 	subs []Subscriber
 }
 
-func (w *Multi) Created(ctx context.Context, collection *classify.Collection) {
+func (w *Multi) Created(ctx context.Context, collection *data.Collection) {
 	for _, v := range w.subs {
 		v.Created(ctx, collection)
 	}
 }
 
-func (w *Multi) Added(ctx context.Context, detail *parser.Detail) {
+func (w *Multi) Added(ctx context.Context, detail *data.Source) {
 	for _, v := range w.subs {
 		v.Added(ctx, detail)
 	}

@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+var (
+	ErrEpisodeExist = errors.New("已经添加过了")
+	ErrNotMatch     = errors.New("item与collection信息不匹配")
+)
+
 type Collection struct {
 	*Animation
 	Metadata
@@ -31,10 +36,10 @@ func NewCollection(animation *Animation, metadata Metadata) *Collection {
 func (c *Collection) Add(item *Source) error {
 	// compare info
 	if !c.compare(item) {
-		return errors.New("item与collection信息不匹配")
+		return ErrNotMatch
 	}
 	if c.Has(item) {
-		return nil
+		return ErrEpisodeExist
 	}
 	// add info
 	c.Fansub = append(c.Fansub, diff(c.Fansub, item.Fansub)...)
@@ -70,6 +75,19 @@ func (c *Collection) compare(item *Source) bool {
 func (c *Collection) Has(item *Source) bool {
 	for _, i := range c.Items {
 		if i.Episode == item.Episode {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Collection) IsFull() bool {
+	return len(c.Items) == c.TotalEpisodes
+}
+
+func (c *Collection) IsMissing() bool {
+	for i, v := range c.Items {
+		if i+1 != v.Episode {
 			return true
 		}
 	}

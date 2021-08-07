@@ -2,28 +2,26 @@ package worker
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	subscriber2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber"
-	source2 "github.com/shlande/dmhy-rss/pkg/data/source"
-	"github.com/shlande/dmhy-rss/pkg/parser"
+	subscriber "github.com/shlande/dmhy-rss/pkg/controller/subscriber"
+	"github.com/shlande/dmhy-rss/pkg/data"
+	"github.com/shlande/dmhy-rss/pkg/data/tools"
+	"log"
 	"time"
 )
 
-func Recover(status Status, collection *classify.Collection, updateTime time.Weekday, logs []*Log) *RecoverHelper {
+func Recover(status Status, collection *data.Collection, logs []*Log) *RecoverHelper {
 	return &RecoverHelper{
 		Status:     status,
 		Id:         collection.Id(),
 		Collection: collection,
-		UpdateTime: updateTime,
 		logs:       logs,
 	}
 }
 
 type RecoverHelper Worker
 
-func (r *RecoverHelper) Recover(ctx context.Context, pvd source2.Provider, ps parser.Parser, sub subscriber2.Subscriber) *Worker {
+func (r *RecoverHelper) Recover(ctx context.Context, pvd tools.CollectionProvider, sub subscriber.Subscriber) *Worker {
 	r.provider = pvd
-	r.parser = ps
 	r.subscriber = sub
 	r.end = make(chan struct{}, 1)
 	wk := (*Worker)(r)
@@ -31,13 +29,11 @@ func (r *RecoverHelper) Recover(ctx context.Context, pvd source2.Provider, ps pa
 	return wk
 }
 
-func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd source2.Provider, ps parser.Parser, sub subscriber2.Subscriber) *Worker {
+func NewWorker(collection *data.Collection, pvd tools.CollectionProvider, sub subscriber.Subscriber) *Worker {
 	return &Worker{
-		parser:     ps,
 		Id:         collection.Id(),
 		Collection: collection,
 		provider:   pvd,
-		UpdateTime: updateTime,
 		subscriber: sub,
 		end:        make(chan struct{}, 1),
 	}
@@ -45,15 +41,19 @@ func NewWorker(collection *classify.Collection, updateTime time.Weekday, pvd sou
 
 // 基础资源
 type Worker struct {
+	SkipTime int
+
 	Id string
 	Status
-	cf     func()
-	end    chan struct{}
-	parser parser.Parser
-	*classify.Collection
-	UpdateTime time.Weekday
-	provider   source2.Provider
-	subscriber subscriber2.Subscriber
+
+	cf  func()
+	end chan struct{}
+
+	*data.Collection
+
+	provider tools.CollectionProvider
+
+	subscriber subscriber.Subscriber
 	logs       []*Log
 }
 
@@ -64,13 +64,17 @@ func (w *Worker) Run(ctx context.Context) {
 }
 
 func (w *Worker) run(ctx context.Context) {
-	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(getNextUpdateTime(w.UpdateTime, w.Collection.LastUpdate))}
+	var m Machine = &waiting{Worker: w, Timer: time.NewTimer(getNextUpdateTime(w.AirWeekday, w.Collection.LastUpdate))}
 	for {
 		m = m.Do(ctx)
 		if m == nil {
 			break
 		}
 		w.Status = m.Status()
+		if w.Status == Finish {
+			log.Println("更新完成")
+			break
+		}
 	}
 	w.end <- struct{}{}
 }
@@ -90,4 +94,9 @@ func (w *Worker) Log() []*Log {
 
 func (w *Worker) Stop() {
 	panic("implement me")
+}
+
+// TODO: 跳过后需要重新计算
+func (w *Worker) getExpectedEpisode() int {
+	return len(w.Items) + 1
 }

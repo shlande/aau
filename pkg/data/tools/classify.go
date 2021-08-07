@@ -25,7 +25,7 @@ func classify(animation *data.Animation, items []*data.Source) map[string]*data.
 		}
 		// 这里不应该出现错误，因为cl相同肯定是可以添加的
 		err := cl.Add(i)
-		if err != nil {
+		if err != nil && err != data.ErrEpisodeExist {
 			panic(err)
 		}
 	}

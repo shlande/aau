@@ -15,7 +15,7 @@ type CollectionProvider struct {
 
 func (c *CollectionProvider) Search(ctx context.Context, animation *data.Animation) ([]*data.Collection, error) {
 	infos, err := c.Provider.Keywords(ctx, animation.Translated)
-	if err != nil {
+	if err != nil && err != data.ErrEpisodeExist {
 		return nil, err
 	}
 	var sources = make([]*data.Source, 0, len(infos))

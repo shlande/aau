@@ -19,8 +19,6 @@ const (
 	Wait Status = iota
 	// Update 正在等待获取到最新的更新
 	Update
-	// Download 正在下载
-	Download
 	// Finish 已经完成更新
 	Finish
 )

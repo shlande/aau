@@ -2,35 +2,35 @@ package worker
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	subscriber2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber"
-	dmhy2 "github.com/shlande/dmhy-rss/pkg/data/source/dmhy"
-	"github.com/shlande/dmhy-rss/pkg/parser/common"
+	"github.com/shlande/dmhy-rss/pkg/data"
+	"github.com/shlande/dmhy-rss/pkg/data/parser"
+	"github.com/shlande/dmhy-rss/pkg/data/source/dmhy"
+	"github.com/shlande/dmhy-rss/pkg/data/tools"
 	"testing"
 	"time"
 )
 
 func TestWorker(t *testing.T) {
 	ctx := context.Background()
-	// 首先尝试获取一个detail
-	parser := common.New()
-	provider := dmhy2.NewProvider()
-	var dl subscriber2.Subscriber = nil
-	info, err := provider.Keywords(ctx, "无职转生")
-	if err != nil {
-		panic(err)
-	}
-	details, err := parser.Parse(info...)
-	if err != nil {
-		panic(err)
-	}
-	collection := classify.Classify(details)
-	if err != nil {
-		panic(err)
-	}
-	cl := collection[0]
-	cl.Latest = cl.Latest - 2
-	worker := NewWorker(cl, time.Sunday, provider, parser, dl)
+
+	worker := NewWorker(data.NewCollection(&data.Animation{
+		Name:          "無職転生～異世界行ったら本気だす～",
+		Translated:    "无职转生～到了异世界就拿出真本事～",
+		AirDate:       time.Now().Truncate(time.Hour * 24 * 30 * 2),
+		AirWeekday:    time.Sunday,
+		AirTime:       time.Hour * 3,
+		TotalEpisodes: 11,
+		Category:      "tv",
+	}, data.Metadata{
+		Fansub:   []string{"桜都字幕組"},
+		Quality:  data.P1080,
+		Type:     data.Episode,
+		Language: 4,
+		SubType:  data.Internal,
+	}), tools.CollectionProvider{
+		Parser:   parser.New(),
+		Provider: dmhy.NewProvider(),
+	}, nil)
 
 	var m Machine = &waiting{Worker: worker, Timer: time.NewTimer(0)}
 	// 第一次，应该跳转到waiting状态
@@ -50,5 +50,40 @@ func TestWorker(t *testing.T) {
 	m = m.Do(ctx)
 	if m.Status() != Update {
 		panic("2")
+	}
+}
+
+func TestOnceCollect(t *testing.T) {
+	ctx := context.Background()
+
+	worker := NewWorker(data.NewCollection(&data.Animation{
+		Name:          "無職転生～異世界行ったら本気だす～",
+		Translated:    "无职转生～到了异世界就拿出真本事～",
+		AirDate:       time.Now().Truncate(time.Hour * 24 * 30 * 2),
+		AirWeekday:    time.Sunday,
+		AirTime:       time.Hour * 3,
+		TotalEpisodes: 11,
+		Category:      "tv",
+	}, data.Metadata{
+		Fansub:   []string{"桜都字幕組"},
+		Quality:  data.P1080,
+		Type:     data.Episode,
+		Language: 4,
+		SubType:  data.Internal,
+	}), tools.CollectionProvider{
+		Parser:   parser.New(),
+		Provider: dmhy.NewProvider(),
+	}, nil)
+
+	var m Machine = &waiting{Worker: worker, Timer: time.NewTimer(0)}
+	// 第一次，应该跳转到waiting状态
+	m = m.Do(ctx)
+	if m.Status() != Update {
+		panic("0")
+	}
+	// 准备更新
+	m = m.Do(ctx)
+	if m.Status() != Finish {
+		panic("1")
 	}
 }

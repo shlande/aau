@@ -2,7 +2,8 @@ package worker
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
+	"github.com/shlande/dmhy-rss/pkg/data"
+	"log"
 	"time"
 )
 
@@ -11,6 +12,22 @@ type Machine interface {
 	Status() Status
 	Skip() (Machine, *Log)
 	Do(ctx context.Context) Machine
+}
+
+type finish struct {
+	*Worker
+}
+
+func (f finish) Status() Status {
+	return Finish
+}
+
+func (f finish) Skip() (Machine, *Log) {
+	panic("implement me")
+}
+
+func (f finish) Do(ctx context.Context) Machine {
+	panic("implement me")
 }
 
 // waiting 等待下一次更新
@@ -61,37 +78,41 @@ func (w *update) Do(ctx context.Context) Machine {
 	if w.sleep(ctx) {
 		return nil
 	}
-	infos, err := w.provider.Keywords(ctx, w.Name)
+	cls, err := w.provider.Search(ctx, w.Animation)
 	if err != nil {
 		w.addLog(newLog(UpdateFail, err.Error()))
 		return w.retry()
 	}
-	details, err := w.parser.Parse(infos...)
-	if err != nil {
-		w.addLog(newLog(UpdateFail, err.Error()))
-		return w.retry()
+	var cl *data.Collection
+	for _, v := range cls {
+		if v.Id() == w.Collection.Id() {
+			cl = v
+			break
+		}
 	}
-	details = classify.Find(details, &classify.Condition{
-		Name:     w.Name,
-		Fansub:   w.Fansub,
-		Category: w.Category,
-		Quality:  w.Quality,
-		SubType:  w.SubType,
-		Language: w.Language,
-	}, classify.After(w.Latest))
+
 	// 更新失败
-	if len(details) < 1 {
+	if cl == nil || cl.Latest < w.getExpectedEpisode() {
 		w.addLog(newLog(UpdateFail, "没有找到符合要求的数据"))
 		return w.retry()
 	}
-	for _, v := range details {
-		w.Collection.Add(v)
-		if w.Worker.subscriber != nil {
-			w.Worker.subscriber.Added(ctx, v)
+
+	for _, v := range cl.Items {
+		err := w.Collection.Add(v)
+		if err != nil && err != data.ErrEpisodeExist {
+			log.Println(err)
+		} else {
+			if w.Worker.subscriber != nil {
+				w.Worker.subscriber.Added(ctx, v)
+			}
 		}
 	}
 	// 更新完成，开始下载
 	w.addLog(newLog(UpdateFinish, ""))
+	// 判断是否完成
+	if w.Collection.IsFull() {
+		return finish{Worker: w.Worker}
+	}
 	return w.next()
 }
 
@@ -102,9 +123,9 @@ func (w *update) next() Machine {
 func (w *update) getTimer() *time.Timer {
 	timer := w.Timer
 	if timer == nil {
-		timer = time.NewTimer(getNextUpdateTime(w.UpdateTime, time.Now()))
+		timer = time.NewTimer(w.getNextUpdateTime())
 	} else {
-		timer.Reset(getNextUpdateTime(w.UpdateTime, time.Now()))
+		timer.Reset(w.getNextUpdateTime())
 	}
 	return timer
 }
@@ -121,6 +142,10 @@ func (w *update) sleep(ctx context.Context) (ctxDone bool) {
 			return false
 		}
 	}
+}
+
+func (w *update) getNextUpdateTime() time.Duration {
+	return getNextUpdateTime(w.AirWeekday, w.LastUpdate)
 }
 
 func getNextUpdateTime(weekday time.Weekday, lastUpdate time.Time) time.Duration {
