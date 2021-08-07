@@ -56,6 +56,7 @@ func (c *Collection) Add(item *Source) error {
 	return nil
 }
 
+// TODO：同时还要检测source的名字是否一致
 func (c *Collection) compare(item *Source) bool {
 	if item == nil {
 		return false
@@ -76,7 +77,7 @@ func (c *Collection) Has(item *Source) bool {
 }
 
 func (c *Collection) String() string {
-	return fmt.Sprintf("%v-%v-%v-%v-%v", c.Type, c.Name, c.Fansub, c.Quality, c.Language)
+	return fmt.Sprintf("%v", c.Metadata)
 }
 
 func (c *Collection) Id() string {
