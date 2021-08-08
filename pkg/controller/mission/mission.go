@@ -18,7 +18,8 @@ func NewMission(animation *data.Animation, metadata data.Metadata) *Mission {
 type Mission struct {
 	*data.Collection
 
-	SkipTime int
+	LastUpdate time.Time
+	SkipTime   int
 	Status
 }
 

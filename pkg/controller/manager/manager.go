@@ -14,12 +14,30 @@ import (
 	"time"
 )
 
-func NewManager(provider tools.CollectionProvider, p store.Interface) *Manager {
+func NewManager(provider tools.CollectionProvider,
+	pm store.MissionInterface,
+	pc store.CollectionInterface,
+	pl store.LogInterface) *Manager {
+	// 从数据库中加载出来持久的mission
+	mss, err := pm.GetAll(true)
+	if err != nil {
+		panic(err)
+	}
+
+	// 初始化加载mission到msq中
+	msq := workqueue.NewDelayingQueue()
+	for _, v := range mss {
+		msq.Add(v)
+	}
+
 	return &Manager{
-		msq:                workqueue.NewDelayingQueue(),
-		CollectionProvider: provider,
-		Store:              p,
-		shutdown:           make(chan struct{}),
+		msq:                 msq,
+		CollectionProvider:  provider,
+		MissionInterface:    pm,
+		CollectionInterface: pc,
+		LogInterface:        pl,
+		shutdown:            make(chan struct{}),
+		ttlTimer:            time.NewTimer(0),
 	}
 }
 
@@ -35,9 +53,13 @@ type Manager struct {
 
 	subscriber.Subscriber
 
-	Store store.Interface
+	store.MissionInterface
+	store.CollectionInterface
+	store.LogInterface
 
 	shutdown chan struct{}
+
+	ttlTimer *time.Timer
 }
 
 func (m *Manager) AddChan() chan<- *mission.Mission {
@@ -45,6 +67,7 @@ func (m *Manager) AddChan() chan<- *mission.Mission {
 }
 
 func (m *Manager) Run(ctx context.Context) {
+	m.ctx = ctx
 	go func() {
 		<-ctx.Done()
 		logrus.Print("Manger正在退出")
@@ -56,6 +79,22 @@ func (m *Manager) Run(ctx context.Context) {
 	go m.addLoop()
 
 	for m.run() {
+		m.waitTTL()
+	}
+}
+
+func (m *Manager) waitTTL() {
+	// 尝试清空上次的timer
+	select {
+	case <-m.ttlTimer.C:
+	}
+
+	m.ttlTimer.Reset(time.Minute)
+
+	// 等待时间
+	select {
+	case <-m.ttlTimer.C:
+	case <-m.ctx.Done():
 	}
 }
 
@@ -125,15 +164,18 @@ func (m *Manager) done(ms *mission.Mission, val interface{}) {
 	if log.Action == mission.UpdateSuccess {
 		// 发布事件
 		for _, v := range val.([]*data.Source) {
-			if m.Store != nil {
-				m.Added(v)
+			if m.Subscriber != nil {
+				m.Subscriber.Added(v)
 			}
 		}
+		// 保存
+		err := m.CollectionInterface.Save(ms.Collection)
+		logrus.Errorln("无法保存collection：", err)
 	}
 
 	// 记录日志
-	if m.Store != nil {
-		err := m.Store.Log().Save(ms.Id(), log)
+	if m.LogInterface != nil {
+		err := m.LogInterface.Save(ms.Id(), log)
 		if err != nil {
 			logrus.Errorln("无法保存日志：", err)
 		}

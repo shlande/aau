@@ -24,7 +24,7 @@ type CollectionInterface interface {
 type MissionInterface interface {
 	Save(mission *mission.Mission) error
 	Get(id string) (*mission.Mission, error)
-	GetAll(deactivated bool) ([]*mission.Mission, error)
+	GetAll(active bool) ([]*mission.Mission, error)
 }
 
 type LogInterface interface {

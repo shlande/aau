@@ -2,30 +2,24 @@ package bolt
 
 import (
 	"errors"
-	"fmt"
 	"github.com/boltdb/bolt"
-	worker2 "github.com/shlande/dmhy-rss/pkg/controller/manager"
 	"github.com/shlande/dmhy-rss/pkg/controller/mission"
 	"github.com/shlande/dmhy-rss/pkg/controller/store"
 	"github.com/shlande/dmhy-rss/pkg/data"
-	source2 "github.com/shlande/dmhy-rss/pkg/data/source"
 	"github.com/sirupsen/logrus"
 	"strconv"
 )
 
 var (
-	animationKey = []byte("animation")
-	resourceKey  = []byte("episode")
-	missionKey   = []byte("manager")
-	logKey       = []byte("log")
+	animationKey         = []byte("animation")
+	collectionSummaryKey = []byte("collectionSummary")
+	resourceKey          = []byte("resource")
+	missionSummaryKey    = []byte("mission")
+	logKey               = []byte("log")
+	pinKey               = []byte("pin")
 )
 
-func New(path string) (bt *Bolt, err error) {
-	defer func() {
-		if err != nil {
-			logrus.Panicln(err)
-		}
-	}()
+func New(path string) *Bolt {
 	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1})
 	tx, err := db.Begin(true)
 	defer func() {
@@ -37,21 +31,31 @@ func New(path string) (bt *Bolt, err error) {
 	}()
 	if err != nil {
 		logrus.Panicln(err)
-		return nil, err
+		panic(err)
 	}
-	_, err = tx.CreateBucketIfNotExists(animationKey)
+
+	_, err = tx.CreateBucketIfNotExists(collectionSummaryKey)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	_, err = tx.CreateBucketIfNotExists(missionKey)
+	_, err = tx.CreateBucketIfNotExists(missionSummaryKey)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	_, err = tx.CreateBucketIfNotExists(resourceKey)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return &Bolt{DB: db}, nil
+	_, err = tx.CreateBucketIfNotExists(logKey)
+	if err != nil {
+		panic(err)
+	}
+	_, err = tx.CreateBucketIfNotExists(pinKey)
+	if err != nil {
+		panic(err)
+	}
+
+	return &Bolt{DB: db}
 }
 
 type Bolt struct {
@@ -59,18 +63,126 @@ type Bolt struct {
 	*bolt.DB
 }
 
-func (b *Bolt) setSummary(tx *bolt.Tx, summary *summary) (err error) {
-	return tx.Bucket(animationKey).Put([]byte(summary.Id), mustEncode(summary))
+func setCollectionSummary(tx *bolt.Tx, summary *collectionSummary) (err error) {
+	return tx.Bucket(collectionSummaryKey).Put([]byte(summary.Id), mustEncode(summary))
 }
 
-func (b *Bolt) getSummary(tx *bolt.Tx, key string, info *summary) error {
-	dt := tx.Bucket([]byte("info")).Get([]byte(key))
+func getCollectionSummary(tx *bolt.Tx, key string, info *collectionSummary) error {
+	dt := tx.Bucket(collectionSummaryKey).Get([]byte(key))
 	if dt == nil {
 		return store.ErrNotFound
 	}
 	return decodeSummary(dt, info)
 }
 
+// Animation 动画简介持久存储
+func setAnimation(tx *bolt.Tx, anm *data.Animation) error {
+	return tx.Bucket(animationKey).Put([]byte(anm.Id), mustEncode(anm))
+}
+
+func getAnimation(tx *bolt.Tx, animationId string, animation *data.Animation) error {
+	dt := tx.Bucket(animationKey).Get([]byte(animationId))
+	if dt == nil {
+		return store.ErrNotFound
+	}
+	return decodeAnimation(dt, animation)
+}
+
+// Resource 资源持久存储
+func getResourceBucketKey(collectionKey string) []byte {
+	return strconv.AppendQuote(resourceKey, "-"+collectionKey)
+}
+
+func getResourceKey(resource *data.Source) []byte {
+	return strconv.AppendInt(nil, int64(resource.Episode), 10)
+}
+
+func getAllSource(tx *bolt.Tx, collectionKey string) (ss []*data.Source, err error) {
+	err = tx.Bucket(getResourceBucketKey(collectionKey)).ForEach(func(k, v []byte) error {
+		var source = &data.Source{}
+		err := decodeResource(v, source)
+		if err != nil {
+			return err
+		}
+		ss = append(ss, source)
+		return nil
+	})
+	return ss, err
+}
+
+func setSource(tx *bolt.Tx, collectionKey string, source *data.Source) (err error) {
+	bk, err := tx.CreateBucketIfNotExists(getResourceBucketKey(collectionKey))
+	if err != nil {
+		return err
+	}
+	return bk.Put(getResourceKey(source), mustEncode(source))
+}
+
+// Mission 任务执持久化存储
+func getMissionSummary(tx *bolt.Tx, collectionId string, ms *missionSummary) error {
+	bt := tx.Bucket(missionSummaryKey).Get([]byte(collectionId))
+	if bt == nil {
+		return store.ErrNotFound
+	}
+	return decodeMissionSummary(bt, ms)
+}
+
+func setMissionSummary(tx *bolt.Tx, ms *missionSummary) error {
+	return tx.Bucket(missionSummaryKey).Put([]byte(ms.CollectionId), mustEncode(ms))
+}
+
+// Pin 固定任务持久化存储
+func getPin(tx *bolt.Tx, key string) (uint8, error) {
+	dt := tx.Bucket(pinKey).Get([]byte(key))
+	if dt == nil {
+		return 0, store.ErrNotFound
+	}
+	return dt[0], nil
+}
+
+func pin(tx *bolt.Tx, animation *data.Animation) error {
+	return tx.Bucket(pinKey).Put([]byte(animation.Id), []byte{0})
+}
+
+func finish(tx *bolt.Tx, animation *data.Animation) error {
+	return tx.Bucket(pinKey).Put([]byte(animation.Id), []byte{1})
+}
+
+func unpin(tx *bolt.Tx, animation *data.Animation) error {
+	return tx.Bucket(pinKey).Delete([]byte(animation.Id))
+}
+
+// Log 日志持久化存储
+func getLogBucketKey(missionKey string) []byte {
+	return strconv.AppendQuoteToASCII(logKey, "-"+missionKey)
+}
+
+func getLogKey(log *mission.Log) []byte {
+	return strconv.AppendInt(nil, log.EmitTime.Unix(), 10)
+}
+
+func setLog(tx *bolt.Tx, missionKey string, log *mission.Log) error {
+	bk, err := tx.CreateBucketIfNotExists(getLogBucketKey(missionKey))
+	if err != nil {
+		return err
+	}
+	return bk.Put(getLogKey(log), mustEncode(log))
+}
+
+func getAllLog(tx *bolt.Tx, missionKey string) (ls []*mission.Log, err error) {
+	err = tx.Bucket(getLogBucketKey(missionKey)).ForEach(func(k, v []byte) error {
+		var log = &mission.Log{}
+		err := decodeLog(v, log)
+		if err != nil {
+			return err
+		}
+		ls = append(ls, log)
+		return nil
+	})
+	return ls, err
+}
+
+// cleanup 清理工作
 func (b *Bolt) cleanup(tx *bolt.Tx, err error) error {
 	if err == nil {
 		if err = tx.Commit(); err != nil {
@@ -91,165 +203,66 @@ type collection struct {
 	*Bolt
 }
 
-func (b *collection) Save(collection *data.Collection) error {
-	tx, err := b.DB.Begin(true)
+func (c collection) Save(collection *data.Collection) error {
+	tx, err := c.Bolt.Begin(true)
+	if err != nil {
+		return err
+	}
+
 	defer func() {
-		err = b.cleanup(tx, err)
+		err = c.cleanup(tx, err)
 	}()
+
+	err = getCollectionSummary(tx, collection.Id(), &collectionSummary{})
 	if err != nil {
-		return err
-	}
-	clId := collection.Id()
-	err = b.set(tx, clId, info)
-	if err != nil {
-		return err
-	}
-	for _, detail := range collection.Items {
-		key := clId + "." + strconv.Itoa(detail.Episode)
-		err = b.setEpisode(tx, key, NewEpisode(detail))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (b *Bolt) getEpisode(tx *bolt.Tx, key string, episode *Episode) error {
-	data := tx.Bucket(resourceKey).Get([]byte(key))
-	if data == nil {
-		return store.ErrNotFound
-	}
-	return decodeEpisode(data, episode)
-}
-
-func (b *Bolt) setEpisode(tx *bolt.Tx, key string, episode *Episode) (err error) {
-	return tx.Bucket([]byte("episode")).Put([]byte(key), episode.Encode())
-}
-
-func (b *Bolt) Get(id string) (*classify.Collection, error) {
-	var cl = &classify.Collection{}
-	info := NewInfo(cl)
-	var detail *parser.Detail
-	var episode *Episode
-	err := b.DB.View(func(tx *bolt.Tx) (err error) {
-		for i := 0; i <= info.Latest; i++ {
-			if err == nil {
-				detail = &parser.Detail{TitleInfo: &parser.TitleInfo{}, Info: &source2.Info{}}
-				episode = NewEpisode(detail)
-			}
-			key := id + "." + strconv.FormatInt(int64(i), 10)
-			err = b.getEpisode(tx, key, episode)
-			if err != nil {
-				if errors.Is(err, store.ErrNotFound) {
-					continue
-				} else {
+		// 首次插入的话就把source也放入
+		if err == store.ErrNotFound {
+			for _, v := range collection.Items {
+				err := setSource(tx, collection.Id(), v)
+				if err != nil {
 					return err
 				}
 			}
-			_ = cl.Add(detail)
 		}
-		return b.getInfo(tx, id, info)
-	})
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		return nil, err
-	}
-	return cl, nil
-}
-
-func (b *Bolt) ListWorker() (hlps []*worker2.RecoverHelper, err error) {
-	var ids []string
-	err = b.DB.View(func(tx *bolt.Tx) error {
-		// TODO:优化一下
-		return tx.Bucket(missionKey).ForEach(func(k, v []byte) error {
-			ids = append(ids, string(k))
-			return nil
-		})
-	})
-	for _, v := range ids {
-		wk, err := b.GetWorker(v)
-		if err != nil {
-			return nil, err
-		}
-		hlps = append(hlps, wk)
-	}
-	return
-}
-
-func (b *Bolt) SaveWorker(worker ...*worker2.Misson) (err error) {
-	tx, err := b.Begin(true)
-	defer func() {
-		err = b.cleanup(tx, err)
-	}()
-	if err != nil {
 		return err
 	}
-	for _, v := range worker {
-		err = b.setWorkerStatus(tx, v.Id, NewWorker(v))
+	return setCollectionSummary(tx, newCollectionSummary(collection))
+}
+
+func (c collection) Get(id string) (cl *data.Collection, err error) {
+	err = c.DB.View(func(tx *bolt.Tx) error {
+		var summary = &collectionSummary{}
+		err := getCollectionSummary(tx, id, summary)
 		if err != nil {
 			return err
 		}
-		// FIXME:虽然worker每次更新的时候都同步了信息，但是最好还是检查一下
-	}
-	return nil
-}
 
-func (b *Bolt) setLog(tx *bolt.Tx, key string, logs []*mission.Log) error {
-	for i, v := range logs {
-		key := key + "." + strconv.Itoa(i)
-		err := tx.Bucket(logKey).Put([]byte(key), encodeLog(v))
+		var anm = &data.Animation{}
+		err = getAnimation(tx, summary.Animation, anm)
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
 
-func (b *Bolt) getLog(tx *bolt.Tx, key string, from, to int) (logs []*mission.Log, err error) {
-	if to-from > 0 {
-		logs = make([]*mission.Log, 0, to-from)
-	}
-	for i := from; i < to; i++ {
-		key := key + "." + strconv.Itoa(i)
-		data := tx.Bucket(logKey).Get([]byte(key))
-		if data == nil {
-			return nil, store.ErrNotFound
-		}
-		var log = &mission.Log{}
-		err := decodeLog(data, log)
-		if err != nil {
-			return nil, fmt.Errorf("%w 无法加载数据 key:%v err:%v", store.ErrOperation, key, err.Error())
-		}
-		logs = append(logs, log)
-	}
-	return logs, nil
-}
-
-func (b *Bolt) getWorkerStatus(tx *bolt.Tx, key string, wk *Worker) error {
-	data := tx.Bucket(missionKey).Get([]byte(key))
-	if data == nil {
-		return store.ErrNotFound
-	}
-	return decodeWorker(data, wk)
-}
-
-func (b *Bolt) setWorkerStatus(tx *bolt.Tx, key string, wk *Worker) error {
-	return tx.Bucket(missionKey).Put([]byte(key), encodeWorker(wk))
-}
-
-func (b *Bolt) GetWorker(workerId string) (wkr *worker2.RecoverHelper, err error) {
-	cl, err := b.Get(workerId)
-	if err != nil {
-		return nil, err
-	}
-	var logs []*mission.Log
-	var wk = &Worker{}
-	err = b.View(func(tx *bolt.Tx) error {
-		err = b.getWorkerStatus(tx, workerId, wk)
+		ss, err := getAllSource(tx, id)
 		if err != nil {
 			return err
 		}
-		logs, err = b.getLog(tx, workerId, 0, wk.Logs)
-		return err
+
+		cl = data.NewCollection(anm, summary.Metadata)
+		for _, v := range ss {
+			err := cl.Add(v)
+			// 这里的错误一定不可能发生
+			if err != nil {
+				panic(err)
+			}
+		}
+		return nil
 	})
-	return worker2.Recover(wk.Status, cl, wk.UpdateTime, logs), nil
+	return cl, err
+}
+
+func (c collection) GetAll() ([]*data.Collection, error) {
+	c.DB.View(func(tx *bolt.Tx) error {
+		tx.Bucket(collectionSummaryKey)
+	})
 }

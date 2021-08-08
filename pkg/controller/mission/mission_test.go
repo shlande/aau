@@ -24,3 +24,26 @@ func Test_getNextUpdateTime(t *testing.T) {
 		})
 	}
 }
+
+func TestTimer(t *testing.T) {
+	timer := time.NewTimer(0)
+	time.Sleep(1)
+	select {
+	case <-timer.C:
+	default:
+		panic("should ok")
+	}
+
+	timer = time.NewTimer(0)
+	time.Sleep(1)
+	select {
+	case <-timer.C:
+	}
+
+	timer.Reset(time.Minute)
+	select {
+	case <-timer.C:
+		panic("should block")
+	default:
+	}
+}
