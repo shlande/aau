@@ -11,6 +11,7 @@ type Interface interface {
 	Mission() MissionInterface
 	Log() LogInterface
 	Animation() AnimationInterface
+	Pin() PinInterface
 }
 
 // CollectionInterface 存放收集到的内容,要提供能通过id快速检索collection的方法
@@ -33,5 +34,19 @@ type LogInterface interface {
 
 type AnimationInterface interface {
 	Save(animation *data.Animation) error
-	Get(name string) (*data.Animation, error)
+	Get(id string) (*data.Animation, error)
+}
+
+type PinInterface interface {
+	AnimationInterface
+
+	Pin(animation *data.Animation) error
+	Unpin(animation *data.Animation) error
+	IsPin(animation *data.Animation) (bool, error)
+
+	Finish(animation *data.Animation) error
+	IsFinish(animation *data.Animation) (bool, error)
+
+	// GetPinned 如果是nil，那么就返回全部，如果是true，则返回活跃的
+	GetPinned(active interface{}) ([]*data.Animation, error)
 }

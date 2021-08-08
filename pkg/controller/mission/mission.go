@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+func NewMission(animation *data.Animation, metadata data.Metadata) *Mission {
+	return &Mission{
+		Collection: data.NewCollection(animation, metadata),
+		SkipTime:   0,
+		Status:     Updating,
+	}
+}
+
 // Mission 只作为一个数据源
 type Mission struct {
 	*data.Collection
@@ -14,11 +22,16 @@ type Mission struct {
 	Status
 }
 
-func (m *Mission) GetNextExpectedResource() int {
+func (m *Mission) GetExpectedLatest() int {
 	if m.Collection.Latest == m.TotalEpisodes {
 		return m.TotalEpisodes
 	}
-	return m.Latest + 1
+	switch m.Status {
+	case Updating:
+		return m.Latest + 1
+	default:
+		return m.Latest
+	}
 }
 
 func (m *Mission) next() {
@@ -33,6 +46,7 @@ func (m *Mission) next() {
 	}
 }
 
+// TODO：完成skip功能
 func (m *Mission) skip() {
 	if m.Status == Updating {
 		m.next()
@@ -57,6 +71,7 @@ func (m *Mission) GetNextUpdateDelay() time.Duration {
 }
 
 func (m *Mission) Next(val interface{}) *Log {
+	m.LastUpdate = time.Now()
 	// val为nil只可能是从waiting转updating
 	if val == nil {
 		switch m.Status {
@@ -96,10 +111,11 @@ func (m *Mission) Next(val interface{}) *Log {
 	return log
 }
 
+// TODO: 精确到分钟
 func getNextUpdateTime(weekday time.Weekday, lastUpdate time.Time) time.Duration {
 	// 获取当前是第几周
 	var day int
-	if lastUpdate.Weekday() >= weekday {
+	if lastUpdate.Weekday() > weekday {
 		day = int(weekday + 7 - lastUpdate.Weekday())
 	} else {
 		day = int(weekday - lastUpdate.Weekday())

@@ -3,8 +3,12 @@ package pinnner
 import (
 	"context"
 	"errors"
+	"github.com/shlande/dmhy-rss/pkg/controller/mission"
+	"github.com/shlande/dmhy-rss/pkg/controller/store"
 	"github.com/shlande/dmhy-rss/pkg/data"
 	"github.com/shlande/dmhy-rss/pkg/data/tools"
+	"github.com/shlande/dmhy-rss/third_part/workqueue"
+	"github.com/sirupsen/logrus"
 	"log"
 	"time"
 )
@@ -24,45 +28,106 @@ type Strategy struct {
 	// 允许不选择的期限
 	Tolerate time.Duration
 	Type     []data.Type
+	SubType  []data.SubType
 }
 
 var defaultStrategy = Strategy{
 	Language: []data.Language{data.GB, data.BIG5},
 	Fansub:   []string{},
 	Quality:  []data.Quality{data.P1080, data.P720, data.K2},
+	SubType:  []data.SubType{data.Internal, data.External},
 	// 允许在一周内作出选择
-	Tolerate: time.Hour * 24 * 7,
+	Tolerate: time.Hour * 24 * 3,
 }
 
 type pinner struct {
 	tools.CollectionProvider
-	finished map[string]struct{}
-	pined    map[string]*data.Animation
-	stg      map[string]Strategy
+	store.PinInterface
+	wq       workqueue.DelayingInterface
+	addChan  chan<- *mission.Mission
+	shutdown chan struct{}
+}
+
+func NewPinner(collectionProvider tools.CollectionProvider) *pinner {
+	return &pinner{CollectionProvider: collectionProvider}
+}
+
+func (p pinner) Run(ctx context.Context) {
+	go func() {
+		<-ctx.Done()
+		logrus.Print("Pinner正在关闭")
+		p.wq.ShutDown()
+		<-p.shutdown
+		logrus.Print("Pinner关闭成功")
+	}()
+	for p.work() {
+	}
+}
+
+func (p pinner) work() bool {
+	val, shutdown := p.wq.Get()
+	if shutdown {
+		close(p.shutdown)
+		return false
+	}
+	anm, err := p.PinInterface.Get(val.(string))
+	if err != nil {
+		logrus.Errorln("无法获取animation信息：", err)
+	}
+
+	cl := p.tryFindBest(anm, defaultStrategy)
+	if cl == nil {
+		p.wq.AddAfter(cl, time.Hour*24)
+	} else {
+		ms := mission.NewMission(cl.Animation, cl.Metadata)
+		p.addChan <- ms
+		p.wq.Done(val)
+	}
+	return true
 }
 
 func (p pinner) Pin(ctx context.Context, animation *data.Animation, strategy Strategy) error {
-	if _, has := p.finished[animation.Name]; has {
+	if ok, err := p.IsFinish(animation); ok || err != nil {
+		if err != nil {
+			return err
+		}
 		return errors.New("番剧已经pin过且完成了")
 	}
-	p.pined[animation.Name] = animation
-	p.stg[animation.Name] = strategy
-	return nil
-}
-
-func (p pinner) Unpin(animation data.Animation) error {
-	if _, has := p.pined[animation.Name]; !has {
-		return errors.New("番剧还没有被pin")
+	if ok, err := p.IsPin(animation); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return errors.New("番剧已经pin过了")
 	}
-	delete(p.pined, animation.Name)
-	delete(p.stg, animation.Name)
+	// 持久化
+	err := p.PinInterface.Pin(animation)
+	if err != nil {
+		return err
+	}
+	// 加入到等待队列中去
+	p.wq.AddAfter(animation.Id, animation.AirDate.Sub(time.Now()))
 	return nil
 }
 
-// find best
-//func (p pinner) Update() {
-//	p.Provider.Keywords()
-//}
+func (p pinner) Unpin(animation *data.Animation) error {
+	if ok, err := p.IsFinish(animation); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return errors.New("番剧已经pin过且完成了")
+	}
+	if ok, err := p.IsPin(animation); !ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return errors.New("番剧还没有pin过")
+	}
+	// 这里只需要把持久化删掉就行了
+	// 因为workqueue不支持删除延迟项，所以这里不进行处理
+	// 而是在出队列后查询是否pin来选择是否执行操作。
+	p.PinInterface.Unpin(animation)
+	return nil
+}
 
 func (p *pinner) tryFindBest(animation *data.Animation, strategy Strategy) *data.Collection {
 	ctx, cf := context.WithTimeout(context.Background(), time.Second*10)

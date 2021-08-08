@@ -1,6 +1,7 @@
 package mission
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -59,4 +60,8 @@ type Log struct {
 	Action
 	EmitTime time.Time
 	Message  string
+}
+
+func (l *Log) String() string {
+	return fmt.Sprintf("%v %v %v", l.Action, l.EmitTime, l.Message)
 }

@@ -24,6 +24,9 @@ func NewManager(provider tools.CollectionProvider, p store.Interface) *Manager {
 }
 
 type Manager struct {
+	// addMsChan 传递需要固定的任务
+	addMsChan chan *mission.Mission
+
 	msq workqueue.DelayingInterface
 
 	ctx context.Context
@@ -37,6 +40,10 @@ type Manager struct {
 	shutdown chan struct{}
 }
 
+func (m *Manager) AddChan() chan<- *mission.Mission {
+	return m.addMsChan
+}
+
 func (m *Manager) Run(ctx context.Context) {
 	go func() {
 		<-ctx.Done()
@@ -45,7 +52,21 @@ func (m *Manager) Run(ctx context.Context) {
 		<-m.shutdown
 		logrus.Print("Manger退出完成")
 	}()
+
+	go m.addLoop()
+
 	for m.run() {
+	}
+}
+
+func (m *Manager) addLoop() {
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case ms := <-m.addMsChan:
+			m.msq.AddAfter(ms, ms.GetNextUpdateDelay())
+		}
 	}
 }
 
@@ -90,7 +111,7 @@ func (m *Manager) update(ms *mission.Mission) {
 		}
 	}
 	// 更新失败
-	if cl == nil || (cl.Latest < ms.GetNextExpectedResource() && len(cl.Items) <= len(ms.Items)) {
+	if cl == nil || (cl.Latest < ms.GetExpectedLatest() && len(cl.Items) <= len(ms.Items)) {
 		m.done(ms, fmt.Errorf("最新的内容还未更新：local: %v, remote:%v", ms.Latest, cl.Latest))
 		return
 	}
@@ -104,17 +125,25 @@ func (m *Manager) done(ms *mission.Mission, val interface{}) {
 	if log.Action == mission.UpdateSuccess {
 		// 发布事件
 		for _, v := range val.([]*data.Source) {
-			m.Added(v)
+			if m.Store != nil {
+				m.Added(v)
+			}
 		}
 	}
 
 	// 记录日志
-	err := m.Store.Log().Save(ms.Id(), log)
-	if err != nil {
-		logrus.Errorln("无法保存日志：", err)
+	if m.Store != nil {
+		err := m.Store.Log().Save(ms.Id(), log)
+		if err != nil {
+			logrus.Errorln("无法保存日志：", err)
+		}
 	}
 }
 
 func (m *Manager) getUpdateTimeout() (context.Context, func()) {
-	return context.WithTimeout(m.ctx, time.Second*10)
+	ctx := m.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithTimeout(ctx, time.Second*10)
 }

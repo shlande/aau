@@ -1,7 +1,6 @@
 package subscriber
 
 import (
-	"context"
 	"github.com/shlande/dmhy-rss/pkg/data"
 )
 
@@ -13,15 +12,15 @@ type Multi struct {
 	subs []Subscriber
 }
 
-func (w *Multi) Created(ctx context.Context, collection *data.Collection) {
+func (w *Multi) Created(collection *data.Collection) {
 	for _, v := range w.subs {
-		v.Created(ctx, collection)
+		v.Created(collection)
 	}
 }
 
-func (w *Multi) Added(ctx context.Context, detail *data.Source) {
+func (w *Multi) Added(detail *data.Source) {
 	for _, v := range w.subs {
-		v.Added(ctx, detail)
+		v.Added(detail)
 	}
 }
 

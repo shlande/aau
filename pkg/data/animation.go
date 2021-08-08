@@ -4,6 +4,7 @@ import "time"
 
 // Animation 这里介绍了一个番剧的详细信息
 type Animation struct {
+	Id         string
 	Name       string
 	Translated string
 	Summary    string
