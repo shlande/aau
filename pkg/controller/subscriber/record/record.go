@@ -2,8 +2,6 @@ package record
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	"github.com/shlande/dmhy-rss/pkg/parser"
 	"log"
 	"strconv"
 	"time"

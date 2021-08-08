@@ -5,7 +5,6 @@ import (
 	log2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber/log"
 	record2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber/record"
 	source2 "github.com/shlande/dmhy-rss/pkg/data/source"
-	"github.com/shlande/dmhy-rss/pkg/parser"
 	"testing"
 )
 

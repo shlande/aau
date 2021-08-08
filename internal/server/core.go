@@ -5,14 +5,11 @@ import (
 	"errors"
 	port2 "github.com/shlande/dmhy-rss/internal/server/port"
 	http2 "github.com/shlande/dmhy-rss/internal/server/port/http"
-	"github.com/shlande/dmhy-rss/pkg/classify"
+	worker2 "github.com/shlande/dmhy-rss/pkg/controller/manager"
 	store2 "github.com/shlande/dmhy-rss/pkg/controller/store"
 	subscriber2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber"
 	state2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber/state"
-	worker2 "github.com/shlande/dmhy-rss/pkg/controller/worker"
 	source2 "github.com/shlande/dmhy-rss/pkg/data/source"
-	"github.com/shlande/dmhy-rss/pkg/log"
-	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -29,7 +26,7 @@ func NewServer(parser2 parser.Parser,
 		Multi:    subscriber2,
 		perm:     perm,
 		temp:     temp,
-		tasks:    make(map[string]*worker2.Worker),
+		tasks:    make(map[string]*worker2.Misson),
 	}
 	server.AddSubscriber(state2.New(perm, server.GetWorker))
 	server.Load()
@@ -44,10 +41,10 @@ type Server struct {
 	*subscriber2.Multi
 	perm  store2.Store
 	temp  store2.Store
-	tasks map[string]*worker2.Worker
+	tasks map[string]*worker2.Misson
 }
 
-func (c *Server) GetWorker(id string) (*worker2.Worker, error) {
+func (c *Server) GetWorker(id string) (*worker2.Misson, error) {
 	wk, has := c.tasks[id]
 	if !has {
 		return nil, errors.New("没有找到worker")

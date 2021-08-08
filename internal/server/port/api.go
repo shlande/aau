@@ -2,8 +2,8 @@ package port
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	worker2 "github.com/shlande/dmhy-rss/pkg/controller/worker"
+	worker2 "github.com/shlande/dmhy-rss/pkg/controller/manager"
+	"github.com/shlande/dmhy-rss/pkg/controller/mission"
 	"time"
 )
 
@@ -25,12 +25,12 @@ type Api interface {
 
 type WorkerInfo struct {
 	Id string
-	worker2.Status
+	mission.Status
 	UpdateTime time.Weekday
-	Logs       []*worker2.Log
+	Logs       []*mission.Log
 }
 
-func NewWorkerInfo(worker *worker2.Worker) *WorkerInfo {
+func NewWorkerInfo(worker *worker2.Misson) *WorkerInfo {
 	if worker == nil {
 		return nil
 	}

@@ -2,7 +2,6 @@ package main
 
 import (
 	server3 "github.com/shlande/dmhy-rss/internal/server"
-	"github.com/shlande/dmhy-rss/pkg/conf"
 	store2 "github.com/shlande/dmhy-rss/pkg/controller/store"
 	bolt2 "github.com/shlande/dmhy-rss/pkg/controller/store/bolt"
 	memory2 "github.com/shlande/dmhy-rss/pkg/controller/store/memory"
@@ -11,8 +10,6 @@ import (
 	record2 "github.com/shlande/dmhy-rss/pkg/controller/subscriber/record"
 	source2 "github.com/shlande/dmhy-rss/pkg/data/source"
 	dmhy2 "github.com/shlande/dmhy-rss/pkg/data/source/dmhy"
-	"github.com/shlande/dmhy-rss/pkg/parser"
-	"github.com/shlande/dmhy-rss/pkg/parser/common"
 	"path"
 )
 

@@ -4,28 +4,26 @@ import (
 	"errors"
 	"fmt"
 	"github.com/boltdb/bolt"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	store2 "github.com/shlande/dmhy-rss/pkg/controller/store"
-	worker2 "github.com/shlande/dmhy-rss/pkg/controller/worker"
+	worker2 "github.com/shlande/dmhy-rss/pkg/controller/manager"
+	"github.com/shlande/dmhy-rss/pkg/controller/mission"
+	"github.com/shlande/dmhy-rss/pkg/controller/store"
+	"github.com/shlande/dmhy-rss/pkg/data"
 	source2 "github.com/shlande/dmhy-rss/pkg/data/source"
-	"github.com/shlande/dmhy-rss/pkg/log"
-	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/sirupsen/logrus"
 	"strconv"
 )
 
 var (
-	infoKey    = []byte("info")
-	episodeKey = []byte("episode")
-	workerKey  = []byte("worker")
-	logKey     = []byte("log")
+	animationKey = []byte("animation")
+	resourceKey  = []byte("episode")
+	missionKey   = []byte("manager")
+	logKey       = []byte("log")
 )
 
 func New(path string) (bt *Bolt, err error) {
-	logger := log.NewEntry("bolt")
 	defer func() {
 		if err != nil {
-			logger.Panicln(err)
+			logrus.Panicln(err)
 		}
 	}()
 	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1})
@@ -38,22 +36,22 @@ func New(path string) (bt *Bolt, err error) {
 		}
 	}()
 	if err != nil {
-		logger.Panicln(err)
+		logrus.Panicln(err)
 		return nil, err
 	}
-	_, err = tx.CreateBucketIfNotExists(infoKey)
+	_, err = tx.CreateBucketIfNotExists(animationKey)
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.CreateBucketIfNotExists(workerKey)
+	_, err = tx.CreateBucketIfNotExists(missionKey)
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.CreateBucketIfNotExists(episodeKey)
+	_, err = tx.CreateBucketIfNotExists(resourceKey)
 	if err != nil {
 		return nil, err
 	}
-	return &Bolt{Entry: logger, DB: db}, nil
+	return &Bolt{DB: db}, nil
 }
 
 type Bolt struct {
@@ -61,42 +59,16 @@ type Bolt struct {
 	*bolt.DB
 }
 
-func (b *Bolt) Save(collection ...*classify.Collection) error {
-	tx, err := b.DB.Begin(true)
-	defer func() {
-		err = b.cleanup(tx, err)
-	}()
-	if err != nil {
-		return err
-	}
-	for _, v := range collection {
-		info := NewInfo(v)
-		clId := v.Id()
-		err = b.setInfo(tx, clId, info)
-		if err != nil {
-			return err
-		}
-		for _, detail := range v.Items {
-			key := clId + "." + strconv.Itoa(detail.Episode)
-			err = b.setEpisode(tx, key, NewEpisode(detail))
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+func (b *Bolt) setSummary(tx *bolt.Tx, summary *summary) (err error) {
+	return tx.Bucket(animationKey).Put([]byte(summary.Id), mustEncode(summary))
 }
 
-func (b *Bolt) setInfo(tx *bolt.Tx, key string, info *Info) (err error) {
-	return tx.Bucket(infoKey).Put([]byte(key), info.Encode())
-}
-
-func (b *Bolt) getInfo(tx *bolt.Tx, key string, info *Info) error {
-	data := tx.Bucket([]byte("info")).Get([]byte(key))
-	if data == nil {
-		return store2.ErrNotFound
+func (b *Bolt) getSummary(tx *bolt.Tx, key string, info *summary) error {
+	dt := tx.Bucket([]byte("info")).Get([]byte(key))
+	if dt == nil {
+		return store.ErrNotFound
 	}
-	return decodeInfo(data, info)
+	return decodeSummary(dt, info)
 }
 
 func (b *Bolt) cleanup(tx *bolt.Tx, err error) error {
@@ -115,10 +87,37 @@ func (b *Bolt) cleanup(tx *bolt.Tx, err error) error {
 	return err
 }
 
+type collection struct {
+	*Bolt
+}
+
+func (b *collection) Save(collection *data.Collection) error {
+	tx, err := b.DB.Begin(true)
+	defer func() {
+		err = b.cleanup(tx, err)
+	}()
+	if err != nil {
+		return err
+	}
+	clId := collection.Id()
+	err = b.set(tx, clId, info)
+	if err != nil {
+		return err
+	}
+	for _, detail := range collection.Items {
+		key := clId + "." + strconv.Itoa(detail.Episode)
+		err = b.setEpisode(tx, key, NewEpisode(detail))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (b *Bolt) getEpisode(tx *bolt.Tx, key string, episode *Episode) error {
-	data := tx.Bucket(episodeKey).Get([]byte(key))
+	data := tx.Bucket(resourceKey).Get([]byte(key))
 	if data == nil {
-		return store2.ErrNotFound
+		return store.ErrNotFound
 	}
 	return decodeEpisode(data, episode)
 }
@@ -141,7 +140,7 @@ func (b *Bolt) Get(id string) (*classify.Collection, error) {
 			key := id + "." + strconv.FormatInt(int64(i), 10)
 			err = b.getEpisode(tx, key, episode)
 			if err != nil {
-				if errors.Is(err, store2.ErrNotFound) {
+				if errors.Is(err, store.ErrNotFound) {
 					continue
 				} else {
 					return err
@@ -151,7 +150,7 @@ func (b *Bolt) Get(id string) (*classify.Collection, error) {
 		}
 		return b.getInfo(tx, id, info)
 	})
-	if err != nil && !errors.Is(err, store2.ErrNotFound) {
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return nil, err
 	}
 	return cl, nil
@@ -161,7 +160,7 @@ func (b *Bolt) ListWorker() (hlps []*worker2.RecoverHelper, err error) {
 	var ids []string
 	err = b.DB.View(func(tx *bolt.Tx) error {
 		// TODO:优化一下
-		return tx.Bucket(workerKey).ForEach(func(k, v []byte) error {
+		return tx.Bucket(missionKey).ForEach(func(k, v []byte) error {
 			ids = append(ids, string(k))
 			return nil
 		})
@@ -176,7 +175,7 @@ func (b *Bolt) ListWorker() (hlps []*worker2.RecoverHelper, err error) {
 	return
 }
 
-func (b *Bolt) SaveWorker(worker ...*worker2.Worker) (err error) {
+func (b *Bolt) SaveWorker(worker ...*worker2.Misson) (err error) {
 	tx, err := b.Begin(true)
 	defer func() {
 		err = b.cleanup(tx, err)
@@ -194,7 +193,7 @@ func (b *Bolt) SaveWorker(worker ...*worker2.Worker) (err error) {
 	return nil
 }
 
-func (b *Bolt) setLog(tx *bolt.Tx, key string, logs []*worker2.Log) error {
+func (b *Bolt) setLog(tx *bolt.Tx, key string, logs []*mission.Log) error {
 	for i, v := range logs {
 		key := key + "." + strconv.Itoa(i)
 		err := tx.Bucket(logKey).Put([]byte(key), encodeLog(v))
@@ -205,20 +204,20 @@ func (b *Bolt) setLog(tx *bolt.Tx, key string, logs []*worker2.Log) error {
 	return nil
 }
 
-func (b *Bolt) getLog(tx *bolt.Tx, key string, from, to int) (logs []*worker2.Log, err error) {
+func (b *Bolt) getLog(tx *bolt.Tx, key string, from, to int) (logs []*mission.Log, err error) {
 	if to-from > 0 {
-		logs = make([]*worker2.Log, 0, to-from)
+		logs = make([]*mission.Log, 0, to-from)
 	}
 	for i := from; i < to; i++ {
 		key := key + "." + strconv.Itoa(i)
 		data := tx.Bucket(logKey).Get([]byte(key))
 		if data == nil {
-			return nil, store2.ErrNotFound
+			return nil, store.ErrNotFound
 		}
-		var log = &worker2.Log{}
+		var log = &mission.Log{}
 		err := decodeLog(data, log)
 		if err != nil {
-			return nil, fmt.Errorf("%w 无法加载数据 key:%v err:%v", store2.ErrOperation, key, err.Error())
+			return nil, fmt.Errorf("%w 无法加载数据 key:%v err:%v", store.ErrOperation, key, err.Error())
 		}
 		logs = append(logs, log)
 	}
@@ -226,15 +225,15 @@ func (b *Bolt) getLog(tx *bolt.Tx, key string, from, to int) (logs []*worker2.Lo
 }
 
 func (b *Bolt) getWorkerStatus(tx *bolt.Tx, key string, wk *Worker) error {
-	data := tx.Bucket(workerKey).Get([]byte(key))
+	data := tx.Bucket(missionKey).Get([]byte(key))
 	if data == nil {
-		return store2.ErrNotFound
+		return store.ErrNotFound
 	}
 	return decodeWorker(data, wk)
 }
 
 func (b *Bolt) setWorkerStatus(tx *bolt.Tx, key string, wk *Worker) error {
-	return tx.Bucket(workerKey).Put([]byte(key), encodeWorker(wk))
+	return tx.Bucket(missionKey).Put([]byte(key), encodeWorker(wk))
 }
 
 func (b *Bolt) GetWorker(workerId string) (wkr *worker2.RecoverHelper, err error) {
@@ -242,7 +241,7 @@ func (b *Bolt) GetWorker(workerId string) (wkr *worker2.RecoverHelper, err error
 	if err != nil {
 		return nil, err
 	}
-	var logs []*worker2.Log
+	var logs []*mission.Log
 	var wk = &Worker{}
 	err = b.View(func(tx *bolt.Tx) error {
 		err = b.getWorkerStatus(tx, workerId, wk)

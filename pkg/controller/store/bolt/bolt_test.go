@@ -3,8 +3,7 @@ package bolt
 import (
 	"context"
 	"encoding/json"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	worker3 "github.com/shlande/dmhy-rss/pkg/controller/worker"
+	worker3 "github.com/shlande/dmhy-rss/pkg/controller/manager"
 	"reflect"
 	"testing"
 	"time"

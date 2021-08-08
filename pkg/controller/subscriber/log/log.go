@@ -2,9 +2,6 @@ package log
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	"github.com/shlande/dmhy-rss/pkg/log"
-	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/sirupsen/logrus"
 )
 

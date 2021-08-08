@@ -2,16 +2,11 @@ package state
 
 import (
 	"context"
-	"github.com/shlande/dmhy-rss/pkg/classify"
-	store2 "github.com/shlande/dmhy-rss/pkg/controller/store"
-	worker2 "github.com/shlande/dmhy-rss/pkg/controller/worker"
-	"github.com/shlande/dmhy-rss/pkg/log"
-	"github.com/shlande/dmhy-rss/pkg/parser"
 	"github.com/sirupsen/logrus"
 	"time"
 )
 
-func New(store2 store2.Store, wks func(id string) (*worker2.Worker, error)) *Updater {
+func New(store2 store2.Store, wks func(id string) (*worker2.Misson, error)) *Updater {
 	return &Updater{
 		Entry: log.NewEntry("updater"),
 		Store: store2,
@@ -23,7 +18,7 @@ func New(store2 store2.Store, wks func(id string) (*worker2.Worker, error)) *Upd
 type Updater struct {
 	*logrus.Entry
 	store2.Store
-	wks func(id string) (*worker2.Worker, error)
+	wks func(id string) (*worker2.Misson, error)
 }
 
 func (u *Updater) Created(ctx context.Context, collection *classify.Collection) {

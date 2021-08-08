@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -110,6 +111,19 @@ func (c *Collection) GetLatest() *Source {
 		}
 	}
 	return nil
+}
+
+func (c *Collection) Merge(collection *Collection) (diff []*Source) {
+	for _, v := range collection.Items {
+		err := c.Add(v)
+		if err != nil && err != ErrEpisodeExist {
+			log.Println(err)
+		}
+		if err == nil {
+			diff = append(diff, v)
+		}
+	}
+	return diff
 }
 
 func GetCollectionId(detail *Source) string {
