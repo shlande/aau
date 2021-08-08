@@ -63,6 +63,26 @@ type Bolt struct {
 	*bolt.DB
 }
 
+func (b *Bolt) Collection() store.CollectionInterface {
+	return collection{b}
+}
+
+func (b *Bolt) Mission() store.MissionInterface {
+	return ms{b}
+}
+
+func (b *Bolt) Log() store.LogInterface {
+	return log{b}
+}
+
+func (b *Bolt) Animation() store.AnimationInterface {
+	return anm{b}
+}
+
+func (b *Bolt) Pin() store.PinInterface {
+	panic("implement me")
+}
+
 func setCollectionSummary(tx *bolt.Tx, summary *collectionSummary) (err error) {
 	return tx.Bucket(collectionSummaryKey).Put([]byte(summary.Id), mustEncode(summary))
 }
@@ -261,8 +281,209 @@ func (c collection) Get(id string) (cl *data.Collection, err error) {
 	return cl, err
 }
 
-func (c collection) GetAll() ([]*data.Collection, error) {
-	c.DB.View(func(tx *bolt.Tx) error {
-		tx.Bucket(collectionSummaryKey)
+func (c collection) GetAll() (cls []*data.Collection, err error) {
+	var keys = make([]string, 0, 10)
+	err = c.DB.View(func(tx *bolt.Tx) error {
+		return tx.Bucket(collectionSummaryKey).ForEach(func(k, v []byte) error {
+			keys = append(keys, string(k))
+			return nil
+		})
 	})
+	for _, v := range keys {
+		cl, err := c.Get(v)
+		if err != nil {
+			return nil, err
+		}
+		cls = append(cls, cl)
+	}
+	return cls, err
+}
+
+type log struct {
+	*Bolt
+}
+
+func (l log) Save(missionId string, log *mission.Log) error {
+	tx, err := l.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err = l.cleanup(tx, err)
+	}()
+
+	return setLog(tx, missionId, log)
+}
+
+func (l log) GetAll(missionId string) (ls []*mission.Log, err error) {
+	err = l.DB.View(func(tx *bolt.Tx) error {
+		ls, err = getAllLog(tx, missionId)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return ls, err
+}
+
+type ms struct {
+	*Bolt
+}
+
+func (m ms) Save(mission *mission.Mission) error {
+	tx, err := m.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() { err = m.cleanup(tx, err) }()
+
+	return setMissionSummary(tx, newMissionSummary(mission))
+}
+
+func (m ms) Get(id string) (ms *mission.Mission, err error) {
+	var mss *missionSummary
+	err = m.DB.View(func(tx *bolt.Tx) error {
+		mss = &missionSummary{}
+		return getMissionSummary(tx, id, mss)
+	})
+	cl, err := collection{m.Bolt}.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return &mission.Mission{
+		Collection: cl,
+		LastUpdate: mss.LastUpdate,
+		SkipTime:   mss.SkipTime,
+		Status:     mss.Status,
+	}, nil
+}
+
+func (m ms) GetAll(active bool) (mss []*mission.Mission, err error) {
+	var keys = make([]string, 0, 10)
+
+	err = m.DB.View(func(tx *bolt.Tx) error {
+		return tx.Bucket(missionSummaryKey).ForEach(func(k, v []byte) error {
+			keys = append(keys, string(k))
+			return nil
+		})
+	})
+
+	for _, v := range keys {
+		ms, err := m.Get(v)
+		if err != nil {
+			return nil, err
+		}
+		// 选择出活跃的或者不活跃的任务
+		if !(ms.Status == mission.Finish) == active {
+			mss = append(mss, ms)
+		}
+	}
+	return mss, err
+}
+
+type anm struct {
+	*Bolt
+}
+
+func (a anm) Save(animation *data.Animation) error {
+	tx, err := a.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() { err = a.cleanup(tx, err) }()
+
+	return setAnimation(tx, animation)
+}
+
+func (a anm) Get(id string) (anm *data.Animation, err error) {
+	err = a.DB.View(func(tx *bolt.Tx) error {
+		anm = &data.Animation{}
+		return getAnimation(tx, id, anm)
+	})
+	return anm, err
+}
+
+type p struct {
+	*Bolt
+}
+
+func (p p) Pin(animation *data.Animation) error {
+	tx, err := p.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() { err = p.cleanup(tx, err) }()
+
+	return pin(tx, animation)
+}
+
+func (p p) Unpin(animation *data.Animation) error {
+	tx, err := p.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() { err = p.cleanup(tx, err) }()
+
+	return unpin(tx, animation)
+}
+
+func (p p) IsPin(animation *data.Animation) (pinned bool, err error) {
+	var val uint8
+	err = p.DB.View(func(tx *bolt.Tx) error {
+		val, err = getPin(tx, animation.Id)
+		return err
+	})
+	return val == 0, err
+}
+
+func (p p) Finish(animation *data.Animation) error {
+	tx, err := p.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() { err = p.cleanup(tx, err) }()
+
+	return finish(tx, animation)
+}
+
+func (p p) IsFinish(animation *data.Animation) (finish bool, err error) {
+	var val uint8
+	err = p.DB.View(func(tx *bolt.Tx) error {
+		val, err = getPin(tx, animation.Id)
+		return err
+	})
+	return val == 1, err
+}
+
+func (p p) GetPinned(active interface{}) (anms []*data.Animation, err error) {
+	err = p.DB.View(func(tx *bolt.Tx) error {
+		var keys []string
+
+		tx.Bucket(pinKey).ForEach(func(k, v []byte) error {
+			if active == nil ||
+				v[0] == 0 && active.(bool) ||
+				v[0] == 1 && !active.(bool) {
+				keys = append(keys, string(k))
+			}
+			return nil
+		})
+
+		for _, v := range keys {
+			// 获取anm
+			var anm = &data.Animation{}
+			err := getAnimation(tx, v, anm)
+			if err != nil {
+				return err
+			}
+			anms = append(anms, anm)
+		}
+		return nil
+	})
+	return anms, err
 }

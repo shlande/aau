@@ -38,8 +38,6 @@ type AnimationInterface interface {
 }
 
 type PinInterface interface {
-	AnimationInterface
-
 	Pin(animation *data.Animation) error
 	Unpin(animation *data.Animation) error
 	IsPin(animation *data.Animation) (bool, error)
