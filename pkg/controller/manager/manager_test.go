@@ -32,13 +32,10 @@ var ms = mission.NewMission(
 
 func TestTracking(t *testing.T) {
 	p := memory.New()
-	worker := NewManager(tools.CollectionProvider{
-		Parser:   parser.New(),
-		Provider: dmhy.NewProvider(),
-	}, p.Mission(), p.Collection(), p.Log())
+	manager := NewManager(tools.NewCollectionProvider(parser.New(), dmhy.NewProvider()), nil, p.Mission(), p.Collection(), p.Log())
 
 	// 一次更新，应该是等待状态
-	worker.update(ms)
+	manager.update(ms)
 	if ms.Status != mission.Waiting {
 		panic("should waiting")
 	}
@@ -48,26 +45,24 @@ func TestTracking(t *testing.T) {
 	ms.Collection.Items = ms.Collection.Items[:len(ms.Collection.Items)-1]
 	// 此时应该更新依然更新成功
 
-	worker.update(ms)
+	manager.update(ms)
 	if ms.Status != mission.Waiting {
 		panic("should updating")
 	}
 
 	// 此时应该更新失败，因为没有新的内容
-	worker.update(ms)
+	manager.update(ms)
 	if ms.Status != mission.Updating {
 		panic("should updating")
 	}
 }
 
 func TestOnceCollect(t *testing.T) {
-	worker := NewManager(tools.CollectionProvider{
-		Parser:   parser.New(),
-		Provider: dmhy.NewProvider(),
-	}, nil, nil, nil)
+	p := memory.New()
+	manager := NewManager(tools.NewCollectionProvider(parser.New(), dmhy.NewProvider()), nil, p.Mission(), p.Collection(), p.Log())
 
 	// 一次更新，应该就已经是完成状态
-	worker.update(ms)
+	manager.update(ms)
 	if ms.Status != mission.Finish {
 		panic("should finish")
 	}

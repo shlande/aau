@@ -13,8 +13,8 @@ import (
 func TestCollectionProvider_Search(t *testing.T) {
 	ctx := context.Background()
 	c := &CollectionProvider{
-		Parser:   parser.New(),
-		Provider: dmhy.NewProvider(),
+		parser: parser.New(),
+		pvd:    dmhy.NewProvider(),
 	}
 	tests := []struct {
 		name      string

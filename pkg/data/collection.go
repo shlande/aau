@@ -96,7 +96,7 @@ func (c *Collection) IsMissing() bool {
 }
 
 func (c *Collection) String() string {
-	return fmt.Sprintf("%v", c.Metadata)
+	return fmt.Sprintf("%v-%v", c.Metadata, c.Animation.Id)
 }
 
 func (c *Collection) Id() string {

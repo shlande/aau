@@ -188,6 +188,7 @@ func getBgmData() (*bgmDataResponse, error) {
 	resp, err := http.Get("https://cdn.jsdelivr.net/npm/bangumi-data@0.3/dist/data.json")
 	if err != nil {
 		logrus.Error("无法更新番剧信息", err)
+		return nil, err
 	}
 	var rsp = &bgmDataResponse{}
 	err = json.NewDecoder(resp.Body).Decode(rsp)

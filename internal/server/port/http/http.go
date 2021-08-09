@@ -5,41 +5,45 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
-	port2 "github.com/shlande/dmhy-rss/internal/server/port"
+	"github.com/shlande/dmhy-rss/internal/server/port"
+	"github.com/shlande/dmhy-rss/pkg/data"
+	"github.com/sirupsen/logrus"
 	"net/http"
+	"strconv"
 	"time"
 )
 
-func Start(address string, api port2.Api) {
-	http.ListenAndServe(address, BuildHandler(api))
+func Start(address string, api port.Api) {
+	err := http.ListenAndServe(address, BuildHandler(api))
+	logrus.Error("http服务异常退出", err)
 }
 
-func BuildHandler(server port2.Api) http.Handler {
+func BuildHandler(server port.Api) http.Handler {
 	router := mux.NewRouter()
-	logger := log.NewEntry("http")
 	router.Use(func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			codeInterceptor := &interceptStatusCode{ResponseWriter: writer}
+			writer.Header().Set("content-type", "application/json")
 			handler.ServeHTTP(codeInterceptor, request)
 			switch codeInterceptor.code {
 			case 200:
 				fallthrough
 			case 400:
-				logger.Infoln(codeInterceptor.code, request.Method, request.RequestURI, request.RemoteAddr)
+				logrus.Infoln(codeInterceptor.code, request.Method, request.RequestURI, request.RemoteAddr)
 			default:
-				logger.Errorln(codeInterceptor.code, request.Method, request.RequestURI, request.RemoteAddr)
+				logrus.Errorln(codeInterceptor.code, request.Method, request.RequestURI, request.RemoteAddr)
 			}
 		})
 	})
 
-	router.Path("/search").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		keywords := request.URL.Query().Get("keywords")
+	router.Path("/search/{keywords}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		keywords := mux.Vars(request)["keywords"]
 		if len(keywords) < 3 {
 			err := fmt.Errorf("%w %v", ErrBadRequest, "关键词长度必须大于三")
 			write(writer, err)
 			return
 		}
-		res, err := server.Search(request.Context(), keywords)
+		res, err := server.SearchAnimation(request.Context(), keywords)
 		if err != nil {
 			write(writer, err)
 			return
@@ -47,34 +51,111 @@ func BuildHandler(server port2.Api) http.Handler {
 		write(writer, res)
 	})
 
-	router.Path("/watch").Methods(http.MethodPost).HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
-		query := request.URL.Query()
-		week, err := parseWeekday(query.Get("time"))
-		if err != nil {
-			write(w, err)
+	router.Path("/search/session/{year}/{session}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		y, s := mux.Vars(request)["year"], mux.Vars(request)["session"]
+		year, err1 := strconv.ParseInt(y, 10, 64)
+		session, err2 := strconv.ParseInt(s, 10, 64)
+		if err1 != nil || err2 != nil {
+			write(writer, "无效的参数")
 			return
 		}
-		write(w, server.Watch(query.Get("id"), week))
-	})
-
-	router.Path("/watch/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		args := mux.Vars(request)
-		status, err := server.WatchStatus(args["id"])
+		anm, err := server.GetAnimationBySession(request.Context(), int(year), int(session))
 		if err != nil {
 			write(writer, err)
 			return
 		}
-		write(writer, status)
+		write(writer, anm)
+	})
+
+	router.Path("/animation/list/{animationId}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		anmId := mux.Vars(request)["animationId"]
+		cls, err := server.ListCollection(request.Context(), anmId)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		var clss = make([]*collectionSummary, 0, len(cls))
+		for _, v := range cls {
+			clss = append(clss, newCollectionSummary(v))
+		}
+		write(writer, clss)
+	})
+
+	router.Path("/mission/create/{collectionId}").Methods(http.MethodGet).HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		id := mux.Vars(request)["collectionId"]
+		write(w, server.CreateMission(request.Context(), id))
+	})
+
+	router.Path("/mission/all/{status}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var err error
+		status := mux.Vars(request)["status"]
+		var active, all bool
+		all = all
+		switch status {
+		case "active":
+			active = true
+		case "inactive":
+			active = false
+		case "":
+			all = true
+		default:
+			write(writer, errors.New("位置的请求类型"))
+			return
+		}
+		ms, err := server.ListMission(request.Context(), active)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		write(writer, ms)
 		return
 	})
 
-	router.Path("/watch/{id}").Methods(http.MethodDelete).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		args := mux.Vars(request)
-		write(writer, server.UnWatch(args["id"]))
-		return
+	router.Path("/mission/log/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		msId := mux.Vars(request)["id"]
+		logs, err := server.GetLogs(request.Context(), msId)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		write(writer, logs)
+	})
+
+	router.Path("/collection/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		clId := mux.Vars(request)["id"]
+		cl, err := server.GetCollection(request.Context(), clId)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		write(writer, newCollectionSummary(cl))
 	})
 
 	return router
+}
+
+type collectionSummary struct {
+	Id string
+	data.Metadata
+
+	// Collection 的信息
+	Latest     int
+	LastUpdate time.Time
+
+	Items []*data.Source
+}
+
+type missionSummary struct {
+}
+
+func newCollectionSummary(collection *data.Collection) *collectionSummary {
+	return &collectionSummary{
+		Id:         collection.Id(),
+		Metadata:   collection.Metadata,
+		Latest:     collection.Latest,
+		LastUpdate: collection.LastUpdate,
+		Items:      collection.Items,
+	}
 }
 
 func write(w http.ResponseWriter, data interface{}) {
@@ -99,28 +180,6 @@ func write(w http.ResponseWriter, data interface{}) {
 		w.WriteHeader(200)
 		w.Write(bt)
 	}
-}
-
-func parseWeekday(weekday string) (week time.Weekday, err error) {
-	switch weekday {
-	case "1":
-		week = time.Monday
-	case "2":
-		week = time.Tuesday
-	case "3":
-		week = time.Wednesday
-	case "4":
-		week = time.Thursday
-	case "5":
-		week = time.Friday
-	case "6":
-		week = time.Saturday
-	case "7":
-		week = time.Sunday
-	default:
-		err = fmt.Errorf("%w: %v", ErrBadRequest, "无效的日期")
-	}
-	return
 }
 
 type interceptStatusCode struct {

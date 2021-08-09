@@ -2,87 +2,28 @@ package port
 
 import (
 	"context"
-	worker2 "github.com/shlande/dmhy-rss/pkg/controller/manager"
 	"github.com/shlande/dmhy-rss/pkg/controller/mission"
-	"time"
+	"github.com/shlande/dmhy-rss/pkg/data"
 )
 
 type Api interface {
-	// Search 通过关键词去查找信息
-	Search(ctx context.Context, words string) ([]*CollectionSummary, error)
-	// Watch 添加collection到监控列表中，进行同步更新
-	Watch(collectionId string, updateTime time.Weekday) error
+	// SearchAnimation 通过关键词去查找番剧
+	SearchAnimation(ctx context.Context, keywords string) ([]*data.Animation, error)
+	// GetAnimationBySession 获取季度番剧
+	GetAnimationBySession(ctx context.Context, year int, session int) ([]*data.Animation, error)
+	// ListCollection 通过番剧id查找对应的资源
+	ListCollection(ctx context.Context, anmUniId string) ([]*data.Collection, error)
+
+	// CreateMission 添加collection到监控列表中，进行同步更新
+	CreateMission(ctx context.Context, collectionId string) error
+	// CancelMission 取消任务
+	CancelMission(ctx context.Context, collectionId string) error
+	// ListMission 列出任务，active用于筛选活跃任务
+	ListMission(ctx context.Context, active bool) ([]*mission.Mission, error)
+
+	// GetLogs 获取日志
+	GetLogs(ctx context.Context, missionId string) ([]*mission.Log, error)
+
 	// GetCollection 通过id查找collection
-	GetCollection(collectinoId string) (*classify.Collection, error)
-	// WatchStatus 获取监控信息
-	WatchStatus(workerId string) (*WorkerInfo, error)
-	// UnWatch 取消更新
-	UnWatch(collectionId string) error
-	// WatchList 列出所有监控的collection
-	// TODO: impl
-	WatchList() []*WorkerInfo
-}
-
-type WorkerInfo struct {
-	Id string
-	mission.Status
-	UpdateTime time.Weekday
-	Logs       []*mission.Log
-}
-
-func NewWorkerInfo(worker *worker2.Misson) *WorkerInfo {
-	if worker == nil {
-		return nil
-	}
-	return &WorkerInfo{
-		Id:         worker.Id,
-		Status:     worker.Status,
-		UpdateTime: worker.UpdateTime,
-		Logs:       worker.Log(),
-	}
-}
-
-func NewCollectionSummary(collection *classify.Collection) *CollectionSummary {
-	if collection == nil {
-		return nil
-	}
-	var episode = make([]*EpisodeSummary, 0, len(collection.Items))
-	for _, v := range collection.Items {
-		episode = append(episode, &EpisodeSummary{
-			Title:   v.Title,
-			Episode: v.Episode,
-		})
-	}
-
-	return &CollectionSummary{
-		Id:         collection.Id(),
-		Name:       collection.Name,
-		Fansub:     collection.Fansub,
-		Quality:    collection.Quality.String(),
-		Category:   collection.Category.String(),
-		SubType:    collection.SubType.String(),
-		Language:   collection.Language.String(),
-		Latest:     collection.Latest,
-		LastUpdate: collection.LastUpdate,
-		Episodes:   episode,
-	}
-}
-
-type CollectionSummary struct {
-	Id       string
-	Name     string
-	Fansub   []string
-	Quality  string
-	Category string
-	SubType  string
-	Language string
-	// Collection 的信息
-	Latest     int
-	LastUpdate time.Time
-	Episodes   []*EpisodeSummary
-}
-
-type EpisodeSummary struct {
-	Title   string
-	Episode int
+	GetCollection(ctx context.Context, collectionId string) (*data.Collection, error)
 }

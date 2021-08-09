@@ -14,7 +14,8 @@ import (
 	"time"
 )
 
-func NewManager(provider tools.CollectionProvider,
+func NewManager(provider *tools.CollectionProvider,
+	sb subscriber.Subscriber,
 	pm store.MissionInterface,
 	pc store.CollectionInterface,
 	pl store.LogInterface) *Manager {
@@ -26,22 +27,30 @@ func NewManager(provider tools.CollectionProvider,
 
 	// 初始化加载mission到msq中
 	msq := workqueue.NewDelayingQueue()
+	tracker := map[string]struct{}{}
 	for _, v := range mss {
 		msq.Add(v)
+		tracker[v.Id()] = struct{}{}
+		logrus.Infoln("正在恢复任务：", v.Id(), v.Name)
 	}
 
 	return &Manager{
 		msq:                 msq,
+		tracker:             tracker,
 		CollectionProvider:  provider,
 		MissionInterface:    pm,
 		CollectionInterface: pc,
 		LogInterface:        pl,
+		Subscriber:          sb,
+		addMsChan:           make(chan *mission.Mission),
 		shutdown:            make(chan struct{}),
 		ttlTimer:            time.NewTimer(0),
 	}
 }
 
 type Manager struct {
+	// 这个只是用来追踪任务的
+	tracker map[string]struct{}
 	// addMsChan 传递需要固定的任务
 	addMsChan chan *mission.Mission
 
@@ -49,7 +58,7 @@ type Manager struct {
 
 	ctx context.Context
 
-	tools.CollectionProvider
+	*tools.CollectionProvider
 
 	subscriber.Subscriber
 
@@ -60,6 +69,13 @@ type Manager struct {
 	shutdown chan struct{}
 
 	ttlTimer *time.Timer
+}
+
+func (m *Manager) ListActiveMissionId() (ids []string) {
+	for k, _ := range m.tracker {
+		ids = append(ids, k)
+	}
+	return
 }
 
 func (m *Manager) AddChan() chan<- *mission.Mission {
@@ -104,6 +120,7 @@ func (m *Manager) addLoop() {
 		case <-m.ctx.Done():
 			return
 		case ms := <-m.addMsChan:
+			m.tracker[ms.Id()] = struct{}{}
 			m.msq.AddAfter(ms, ms.GetNextUpdateDelay())
 		}
 	}
@@ -118,9 +135,14 @@ func (m *Manager) run() bool {
 
 	ms := val.(*mission.Mission)
 	m.update(ms)
-
+	// 保存mission
+	err := m.MissionInterface.Save(ms)
+	if err != nil {
+		logrus.Errorln(err)
+	}
 	switch ms.Status {
 	case mission.Finish:
+		delete(m.tracker, ms.Id())
 		m.msq.Done(ms)
 	default:
 		m.msq.AddAfter(ms, ms.GetNextUpdateDelay())
