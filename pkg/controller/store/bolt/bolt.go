@@ -34,6 +34,10 @@ func New(path string) *Bolt {
 		panic(err)
 	}
 
+	_, err = tx.CreateBucketIfNotExists(animationKey)
+	if err != nil {
+		panic(err)
+	}
 	_, err = tx.CreateBucketIfNotExists(collectionSummaryKey)
 	if err != nil {
 		panic(err)
@@ -64,7 +68,7 @@ type Bolt struct {
 }
 
 func (b *Bolt) Collection() store.CollectionInterface {
-	return collection{b}
+	return &collection{b}
 }
 
 func (b *Bolt) Mission() store.MissionInterface {
@@ -80,7 +84,7 @@ func (b *Bolt) Animation() store.AnimationInterface {
 }
 
 func (b *Bolt) Pin() store.PinInterface {
-	panic("implement me")
+	return p{b}
 }
 
 func setCollectionSummary(tx *bolt.Tx, summary *collectionSummary) (err error) {
@@ -223,7 +227,7 @@ type collection struct {
 	*Bolt
 }
 
-func (c collection) Save(collection *data.Collection) error {
+func (c *collection) Save(collection *data.Collection) (err error) {
 	tx, err := c.Bolt.Begin(true)
 	if err != nil {
 		return err
@@ -243,13 +247,21 @@ func (c collection) Save(collection *data.Collection) error {
 					return err
 				}
 			}
+			err = nil
+		} else {
+			return err
 		}
+	}
+	err = setCollectionSummary(tx, newCollectionSummary(collection))
+	if err != nil {
 		return err
 	}
-	return setCollectionSummary(tx, newCollectionSummary(collection))
+
+	// 保存animation数据
+	return setAnimation(tx, collection.Animation)
 }
 
-func (c collection) Get(id string) (cl *data.Collection, err error) {
+func (c *collection) Get(id string) (cl *data.Collection, err error) {
 	err = c.DB.View(func(tx *bolt.Tx) error {
 		var summary = &collectionSummary{}
 		err := getCollectionSummary(tx, id, summary)
@@ -281,7 +293,7 @@ func (c collection) Get(id string) (cl *data.Collection, err error) {
 	return cl, err
 }
 
-func (c collection) GetAll() (cls []*data.Collection, err error) {
+func (c *collection) GetAll() (cls []*data.Collection, err error) {
 	var keys = make([]string, 0, 10)
 	err = c.DB.View(func(tx *bolt.Tx) error {
 		return tx.Bucket(collectionSummaryKey).ForEach(func(k, v []byte) error {
@@ -348,7 +360,7 @@ func (m ms) Get(id string) (ms *mission.Mission, err error) {
 		mss = &missionSummary{}
 		return getMissionSummary(tx, id, mss)
 	})
-	cl, err := collection{m.Bolt}.Get(id)
+	cl, err := (&collection{m.Bolt}).Get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -429,6 +441,14 @@ func (p p) Unpin(animation *data.Animation) error {
 
 	defer func() { err = p.cleanup(tx, err) }()
 
+	status, err := getPin(tx, animation.Id)
+	if err != nil {
+		return err
+	}
+	if status == 1 {
+		return errors.New("无法取消已经完成的pin")
+	}
+
 	return unpin(tx, animation)
 }
 
@@ -438,6 +458,9 @@ func (p p) IsPin(animation *data.Animation) (pinned bool, err error) {
 		val, err = getPin(tx, animation.Id)
 		return err
 	})
+	if err == store.ErrNotFound {
+		return false, nil
+	}
 	return val == 0, err
 }
 
@@ -449,7 +472,19 @@ func (p p) Finish(animation *data.Animation) error {
 
 	defer func() { err = p.cleanup(tx, err) }()
 
-	return finish(tx, animation)
+	status, err := getPin(tx, animation.Id)
+	if err != nil {
+		return err
+	}
+	switch status {
+	case 0:
+		return finish(tx, animation)
+	case 1:
+		return errors.New("pin已经完成")
+	default:
+		return errors.New("无效的状态")
+	}
+
 }
 
 func (p p) IsFinish(animation *data.Animation) (finish bool, err error) {
@@ -458,6 +493,9 @@ func (p p) IsFinish(animation *data.Animation) (finish bool, err error) {
 		val, err = getPin(tx, animation.Id)
 		return err
 	})
+	if err == store.ErrNotFound {
+		return false, nil
+	}
 	return val == 1, err
 }
 
@@ -465,7 +503,7 @@ func (p p) GetPinned(active interface{}) (anms []*data.Animation, err error) {
 	err = p.DB.View(func(tx *bolt.Tx) error {
 		var keys []string
 
-		tx.Bucket(pinKey).ForEach(func(k, v []byte) error {
+		err = tx.Bucket(pinKey).ForEach(func(k, v []byte) error {
 			if active == nil ||
 				v[0] == 0 && active.(bool) ||
 				v[0] == 1 && !active.(bool) {

@@ -21,7 +21,7 @@ type collectionSummary struct {
 func newCollectionSummary(cl *data.Collection) *collectionSummary {
 	return &collectionSummary{
 		Id:         cl.Id(),
-		Animation:  cl.Animation.Name,
+		Animation:  cl.Animation.Id,
 		Metadata:   cl.Metadata,
 		Latest:     cl.Latest,
 		LastUpdate: cl.LastUpdate,
@@ -45,11 +45,11 @@ func newMissionSummary(ms *mission.Mission) *missionSummary {
 }
 
 func mustEncode(obj interface{}) []byte {
-	data, err := json.Marshal(obj)
+	dt, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
-	return data
+	return dt
 }
 
 func decodeAnimation(data []byte, anm *data.Animation) error {
@@ -78,14 +78,6 @@ func decodeSummary(data []byte, sum *collectionSummary) error {
 
 func decodeResource(data []byte, ep *data.Source) error {
 	err := json.Unmarshal(data, ep)
-	if err != nil {
-		panic(err)
-	}
-	return nil
-}
-
-func decodeMission(data []byte, mission *mission.Mission) error {
-	err := json.Unmarshal(data, mission)
 	if err != nil {
 		panic(err)
 	}
