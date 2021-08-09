@@ -1,7 +1,7 @@
 package record
 
 import (
-	"context"
+	"github.com/shlande/dmhy-rss/pkg/data"
 	"log"
 	"strconv"
 	"time"
@@ -19,27 +19,27 @@ type Recorder struct {
 	KVSetter
 }
 
-func (r *Recorder) Created(_ context.Context, collection *classify.Collection) {
+func (r *Recorder) Created(collection *data.Collection) {
 	for _, v := range collection.Items {
-		r.Added(nil, v)
+		r.Added(v)
 	}
 }
 
-func (r *Recorder) Added(_ context.Context, detail *parser.Detail) {
+func (r *Recorder) Added(detail *data.Source) {
 	err := r.Set(detail.Name+"-"+strconv.Itoa(detail.Episode), newRecord(detail))
 	if err != nil {
 		log.Println("无法记录数据：" + err.Error())
 	}
 }
 
-func newRecord(detail *parser.Detail) *record {
-	url := detail.MagnetUrl
+func newRecord(source *data.Source) *record {
+	url := source.MagnetUrl
 	if len(url) == 0 {
-		url = detail.TorrentUrl
+		url = source.TorrentUrl
 	}
 	return &record{
-		Name:    detail.Name,
-		Episode: detail.Episode,
+		Name:    source.Name,
+		Episode: source.Episode,
 		Url:     url,
 		Time:    time.Now(),
 	}

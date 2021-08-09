@@ -9,9 +9,8 @@ type Animation struct {
 	Translated string
 	Summary    string
 	AirDate    time.Time
-	AirWeekday time.Weekday
-	// 在weekday 的基础上加AirTime的时间
-	AirTime time.Duration
+	// 更新等待周期，可能是month，day，once
+	AirBreak time.Duration
 	// 总共集数
 	TotalEpisodes int
 	// 分类

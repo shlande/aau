@@ -170,7 +170,9 @@ func (m *Manager) done(ms *mission.Mission, val interface{}) {
 		}
 		// 保存
 		err := m.CollectionInterface.Save(ms.Collection)
-		logrus.Errorln("无法保存collection：", err)
+		if err != nil {
+			logrus.Errorln("无法保存collection：", err)
+		}
 	}
 
 	// 记录日志

@@ -65,7 +65,8 @@ func (m *Mission) GetNextUpdateDelay() time.Duration {
 		}
 		return should.Sub(time.Now())
 	case Waiting:
-		return getNextUpdateTime(m.Animation.AirWeekday, m.LastUpdate)
+		anm := m.Animation
+		return getNextUpdateTime(anm.AirDate, anm.AirBreak, anm.AirBreak*time.Duration(m.SkipTime), m.LastUpdate)
 	default:
 		panic("unreachable")
 	}
@@ -112,14 +113,18 @@ func (m *Mission) Next(val interface{}) *Log {
 	return log
 }
 
-// TODO: 精确到分钟
-func getNextUpdateTime(weekday time.Weekday, lastUpdate time.Time) time.Duration {
+func getNextUpdateTime(airDate time.Time, airBreak, skip time.Duration, lastUpdate time.Time) time.Duration {
 	// 获取当前是第几周
-	var day int
-	if lastUpdate.Weekday() > weekday {
-		day = int(weekday + 7 - lastUpdate.Weekday())
-	} else {
-		day = int(weekday - lastUpdate.Weekday())
+	// 获取当前时间
+	if airBreak == 0 {
+		return time.Hour
 	}
-	return time.Date(lastUpdate.Year(), lastUpdate.Month(), lastUpdate.Day()+day, 0, 0, 0, 0, time.Local).Sub(lastUpdate)
+
+	airDate.Add(skip)
+
+	for airDate.Before(lastUpdate) {
+		airDate = airDate.Add(airBreak)
+	}
+
+	return airDate.Sub(lastUpdate)
 }

@@ -6,19 +6,18 @@ import (
 )
 
 func Test_getNextUpdateTime(t *testing.T) {
+	now := time.Date(2021, 8, 9, 11, 27, 0, 0, time.Local)
 	tests := []struct {
-		name       string
-		weekday    time.Weekday
-		lastUpdate time.Time
-		want       time.Duration
+		name     string
+		airTime  time.Time
+		airBreak time.Duration
+		want     time.Duration
 	}{
-		{"after", time.Sunday, time.Date(2021, 6, 1, 0, 0, 0, 0, time.Local), time.Hour * 24 * 5},
-		{"same", time.Tuesday, time.Date(2021, 6, 1, 0, 0, 0, 0, time.Local), time.Hour * 24 * 7},
-		{"day-after", time.Wednesday, time.Date(2021, 6, 1, 0, 0, 0, 0, time.Local), time.Hour * 24},
+		{"after", time.Date(2021, 7, 7, 15, 0, 0, 0, time.Local), time.Hour * 24 * 7, time.Hour*51 + time.Minute*33},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getNextUpdateTime(tt.weekday, tt.lastUpdate); got != tt.want {
+			if got := getNextUpdateTime(tt.airTime, tt.airBreak, 0, now); got != tt.want {
 				t.Errorf("getNextUpdateTime() = %v, want %v", got, tt.want)
 			}
 		})
