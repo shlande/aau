@@ -1,6 +1,7 @@
 package mission
 
 import (
+	"errors"
 	"fmt"
 	"github.com/shlande/dmhy-rss/pkg/data"
 	"time"
@@ -21,6 +22,23 @@ type Mission struct {
 	LastUpdate time.Time
 	SkipTime   int
 	Status
+}
+
+// Valid 用来判断一个任务是否已经提供了完备的更新信息
+func (m *Mission) Valid() error {
+	if m.Animation == nil {
+		return errors.New("任务没有绑定animation词条")
+	}
+	if m.AirDate.Equal(time.Time{}) {
+		return errors.New("无效的开播时间")
+	}
+	if m.AirBreak < 0 || m.AirBreak > 40*time.Hour*24 {
+		return errors.New("无效的更新周期")
+	}
+	if m.TotalEpisodes <= 0 {
+		return errors.New("无效的总共集数")
+	}
+	return nil
 }
 
 func (m *Mission) GetExpectedLatest() int {

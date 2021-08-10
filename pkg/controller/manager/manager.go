@@ -117,6 +117,10 @@ func (m *Manager) addLoop() {
 		case <-m.ctx.Done():
 			return
 		case ms := <-m.addMsChan:
+			if err := ms.Valid(); err != nil {
+				logrus.Errorln("无法添加任务:", err)
+				continue
+			}
 			// 从外部读取到到mission，一定要更新
 			err := m.MissionInterface.Save(ms)
 			if err != nil {

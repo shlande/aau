@@ -24,6 +24,9 @@ func (m *Manual) CreateMission(collectionId string) error {
 		return errors.New("无效的collectionId，可能已经过期了🤔")
 	}
 	ms := mission.NewMission(collection.Animation, collection.Metadata)
-	m.msc <- ms
-	return nil
+	err := ms.Valid()
+	if err == nil {
+		m.msc <- ms
+	}
+	return err
 }
