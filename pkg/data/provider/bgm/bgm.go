@@ -7,6 +7,7 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/controller/store"
 	"github.com/shlande/dmhy-rss/pkg/data"
 	"github.com/shlande/dmhy-rss/pkg/data/provider"
+	"github.com/shlande/dmhy-rss/pkg/utils"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -41,7 +42,7 @@ type Provider struct {
 }
 
 func (p *Provider) Session(_ context.Context, year int, session provider.Session) (anms []*data.Animation, err error) {
-	for _, v := range p.sortByTime(getSessionTime(year, int(session))) {
+	for _, v := range p.sortByTime(utils.GetSessionTime(year, int(session))) {
 		anm, _ := p.get(v.GetUniId())
 		anms = append(anms, anm)
 	}
@@ -196,13 +197,4 @@ func ParseBroadcast(bs string) (airTime time.Time, airBreak time.Duration, err e
 	airBreak = time.Hour * 24 * time.Duration(ab)
 
 	return
-}
-
-func getSessionTime(year int, session int) (start time.Time, end time.Time) {
-	// 就一般理性而言，番剧都会在某一个月集中开始发布，因此在计算开始的时候，把范围往前面挪动会更加合适
-	if session == 0 {
-		year = year - 1
-	}
-	return time.Date(year, time.Month((11+session*3)%12+1), 0, 0, 0, 0, 0, time.Local),
-		time.Date(year+session/3, time.Month((11+(session+1)*3)%12+1), 0, 0, 0, 0, 0, time.Local)
 }

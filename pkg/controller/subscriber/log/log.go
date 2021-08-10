@@ -15,6 +15,6 @@ func (l *Log) Created(collection *data.Collection) {
 	logrus.Infoln("新的监控添加 id:", collection.Id(), "name:", collection.Name)
 }
 
-func (l *Log) Added(detail *data.Source) {
+func (l *Log) Added(detail *data.Source, collection *data.Collection) {
 	logrus.Infoln("新内容添加", detail.Name, detail.Episode)
 }

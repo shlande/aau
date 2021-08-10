@@ -8,5 +8,5 @@ import (
 type Subscriber interface {
 	// Created 存放新创建的collection
 	Created(collection *data.Collection)
-	Added(detail *data.Source)
+	Added(detail *data.Source, collection *data.Collection)
 }

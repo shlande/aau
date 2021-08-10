@@ -2,6 +2,7 @@ package data
 
 import (
 	"errors"
+	"github.com/shlande/dmhy-rss/pkg/utils"
 	"time"
 )
 
@@ -36,4 +37,8 @@ func (a *Animation) SetKeywords(keywords string) error {
 	}
 	a.Keywords = keywords
 	return nil
+}
+
+func (a *Animation) GetSession() (year, session int) {
+	return utils.GetSession(a.AirDate)
 }

@@ -8,3 +8,10 @@ type Source struct {
 	Episode int
 	Metadata
 }
+
+func (s Source) GetDownloadUrl() string {
+	if len(s.MagnetUrl) != 0 {
+		return s.MagnetUrl
+	}
+	return s.TorrentUrl
+}

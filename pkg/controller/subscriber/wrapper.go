@@ -18,9 +18,9 @@ func (w *Multi) Created(collection *data.Collection) {
 	}
 }
 
-func (w *Multi) Added(detail *data.Source) {
+func (w *Multi) Added(detail *data.Source, collection *data.Collection) {
 	for _, v := range w.subs {
-		v.Added(detail)
+		v.Added(detail, collection)
 	}
 }
 

@@ -15,8 +15,11 @@ type Config struct {
 }
 
 var DefaultConfig = Config{
-	StoreConfig:     StoreConfig{Path: "./data.db"},
-	SubscribeConfig: SubscribeConfig{RecordPath: "./resource.json"},
+	StoreConfig: StoreConfig{Path: "./data.db"},
+	SubscribeConfig: SubscribeConfig{
+		RecordPath:    "./resource.json",
+		Aria2BasePath: "/downloads",
+	},
 }
 
 func BuildServer(config Config) *Server {

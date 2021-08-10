@@ -40,7 +40,7 @@ func NewManager(provider *tools.CollectionProvider,
 	// 添加mission到manager中
 	for _, v := range mss {
 		m.addMission(v)
-		logrus.Infoln("正在恢复任务：", v.Id(), v.Name)
+		logrus.Infoln("恢复任务：", v.Id(), v.Name)
 	}
 	return m
 }
@@ -210,7 +210,7 @@ func (m *Manager) done(ms *mission.Mission, val interface{}) {
 		// 发布事件
 		for _, v := range val.([]*data.Source) {
 			if m.Subscriber != nil {
-				m.Subscriber.Added(v)
+				m.Subscriber.Added(v, ms.Collection)
 			}
 		}
 		// 保存

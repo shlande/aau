@@ -21,11 +21,11 @@ type Recorder struct {
 
 func (r *Recorder) Created(collection *data.Collection) {
 	for _, v := range collection.Items {
-		r.Added(v)
+		r.Added(v, nil)
 	}
 }
 
-func (r *Recorder) Added(detail *data.Source) {
+func (r *Recorder) Added(detail *data.Source, collection *data.Collection) {
 	err := r.Set(detail.Name+"-"+strconv.Itoa(detail.Episode), newRecord(detail))
 	if err != nil {
 		log.Println("无法记录数据：" + err.Error())

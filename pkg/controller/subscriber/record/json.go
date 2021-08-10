@@ -3,6 +3,7 @@ package record
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/shlande/dmhy-rss/pkg/utils"
 	"io"
 	"os"
 	"regexp"
@@ -50,7 +51,7 @@ func (r *JsonKV) Set(key string, data interface{}) (err error) {
 	case []byte:
 		dt = temp
 	default:
-		dt, err = r.marshal(data)
+		dt, err = utils.UnescapeJsonMarshal(data)
 		if err != nil {
 			return err
 		}
@@ -86,13 +87,4 @@ func (r *JsonKV) append(key string, data []byte) (err error) {
 		return err
 	}
 	return nil
-}
-
-func (r *JsonKV) marshal(data interface{}) (bt []byte, err error) {
-	byteBuf := bytes.NewBuffer([]byte{})
-	encoder := json.NewEncoder(byteBuf)
-	encoder.SetEscapeHTML(false)
-	err = encoder.Encode(data)
-	bt = byteBuf.Bytes()
-	return
 }
