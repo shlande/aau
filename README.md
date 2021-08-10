@@ -92,33 +92,35 @@ controller支持一下几种操作：
 
 ### 默认pinner策略
 
-1. 
-
-2. 倾向于的画质：1080 > 720 > 2k > other
+1. 倾向于的画质：1080 > 720 > 2k > other
 
    对于画质而言，首选1080p，但是如果没有1080p那么很大情况下这个番剧是一个冷门番剧，使用2k来说太浪费空间，因此优先选择720。但是如果只有2k资源，为了保证资源的完整性，还是必须进行收录。
 
-3. 倾向于汉化组：xxx>xxx>xxx
+2. 倾向于汉化组：xxx>xxx>xxx
 
    这部分不进行默认设置，由用户来选择。
 
-4. 倾向于语言：简体>繁体
+3. 倾向字幕：简体>繁体>日语，内嵌>内封>外挂
+
+   如果字幕类型是内封，那么语言越多越好；如果类型是内嵌，那么越少越好；如果是外挂，当前情况下忽略，如果需要必须手动添加。当前阶段因为不清楚dplayer对mkv的支持度，首选内嵌字幕。
 
    
-
-
 
 ## 开发流程：
 
 ### Provider，Analyzer，Source开发
 
-- [ ] 调整原来的代码，拆分出公共的数据结构，并替换掉原来散落在各个其他包中的类型。
-- [ ] 完成定义接口
+- [x] 调整原来的代码，拆分出公共的数据结构，并替换掉原来散落在各个其他包中的类型。
+- [x] 完成定义接口
 
 ### controller，subscribe开发
 
-- [ ] controller接口完成，支持的功能思考完后形成文档。
-- [ ] 调整原来的worker结构，把log移动到controller中与worker同级别。
-- [ ] worker支持新版的subscriber
-- [ ] conroller通过subscriber完成日志记录功能
-- [ ] controller
+- [x] controller接口完成，支持的功能思考完后形成文档。
+- [x] 调整原来的worker结构，把log移动到controller中与worker同级别。
+- [x] worker支持新版的subscriber
+- [x] conroller通过subscriber完成日志记录功能
+
+--- 8.10 ---
+
+- [ ] animation支持自定义查找时关键词。
+- [ ] 规划download grpc接口。
