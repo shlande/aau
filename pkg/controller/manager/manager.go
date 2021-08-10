@@ -19,24 +19,9 @@ func NewManager(provider *tools.CollectionProvider,
 	pm store.MissionInterface,
 	pc store.CollectionInterface,
 	pl store.LogInterface) *Manager {
-	// 从数据库中加载出来持久的mission
-	mss, err := pm.GetAll(true)
-	if err != nil {
-		panic(err)
-	}
-
-	// 初始化加载mission到msq中
-	msq := workqueue.NewDelayingQueue()
-	tracker := map[string]struct{}{}
-	for _, v := range mss {
-		msq.Add(v)
-		tracker[v.Id()] = struct{}{}
-		logrus.Infoln("正在恢复任务：", v.Id(), v.Name)
-	}
-
-	return &Manager{
-		msq:                 msq,
-		tracker:             tracker,
+	m := &Manager{
+		msq:                 workqueue.NewDelayingQueue(),
+		tracker:             map[string]struct{}{},
 		CollectionProvider:  provider,
 		MissionInterface:    pm,
 		CollectionInterface: pc,
@@ -46,6 +31,18 @@ func NewManager(provider *tools.CollectionProvider,
 		shutdown:            make(chan struct{}),
 		ttlTimer:            time.NewTimer(0),
 	}
+
+	// 从数据库中加载出来持久的mission
+	mss, err := pm.GetAll(true)
+	if err != nil && err != store.ErrNotFound {
+		panic(err)
+	}
+	// 添加mission到manager中
+	for _, v := range mss {
+		m.addMission(v)
+		logrus.Infoln("正在恢复任务：", v.Id(), v.Name)
+	}
+	return m
 }
 
 type Manager struct {
@@ -120,10 +117,26 @@ func (m *Manager) addLoop() {
 		case <-m.ctx.Done():
 			return
 		case ms := <-m.addMsChan:
-			m.tracker[ms.Id()] = struct{}{}
-			m.msq.AddAfter(ms, ms.GetNextUpdateDelay())
+			// 从外部读取到到mission，一定要更新
+			err := m.MissionInterface.Save(ms)
+			if err != nil {
+				logrus.Errorln("保存mission失败：", err)
+			}
+			err = m.CollectionInterface.Save(ms.Collection)
+			if err != nil {
+				logrus.Errorln("保存mission失败：", err)
+			}
+			m.addMission(ms)
 		}
 	}
+}
+
+func (m *Manager) addMission(ms *mission.Mission) {
+	if _, has := m.tracker[ms.Id()]; has {
+		return
+	}
+	m.tracker[ms.Id()] = struct{}{}
+	m.msq.AddAfter(ms.Id(), ms.GetNextUpdateDelay())
 }
 
 func (m *Manager) run() bool {
@@ -132,20 +145,26 @@ func (m *Manager) run() bool {
 		close(m.shutdown)
 		return false
 	}
+	// 从store中取，保证内容是最新的
+	ms, err := m.MissionInterface.Get(val.(string))
+	if err != nil {
+		logrus.Errorln("无法更新mission:", err)
+		return true
+	}
 
-	ms := val.(*mission.Mission)
 	m.update(ms)
 	// 保存mission
-	err := m.MissionInterface.Save(ms)
+	err = m.MissionInterface.Save(ms)
 	if err != nil {
 		logrus.Errorln(err)
 	}
+
 	switch ms.Status {
 	case mission.Finish:
 		delete(m.tracker, ms.Id())
-		m.msq.Done(ms)
+		m.msq.Done(ms.Id())
 	default:
-		m.msq.AddAfter(ms, ms.GetNextUpdateDelay())
+		m.msq.AddAfter(ms.Id(), ms.GetNextUpdateDelay())
 	}
 	return true
 }

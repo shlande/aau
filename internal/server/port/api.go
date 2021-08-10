@@ -11,8 +11,13 @@ type Api interface {
 	SearchAnimation(ctx context.Context, keywords string) ([]*data.Animation, error)
 	// GetAnimationBySession 获取季度番剧
 	GetAnimationBySession(ctx context.Context, year int, session int) ([]*data.Animation, error)
-	// ListCollection 通过番剧id查找对应的资源
-	ListCollection(ctx context.Context, anmUniId string) ([]*data.Collection, error)
+	// SetAnimationKeywords 设置番剧查找资源时使用的关键词
+	SetAnimationKeywords(ctx context.Context, anmId, keywords string) error
+
+	// ListCollectionByAnmId 通过番剧id查找对应的资源
+	ListCollectionByAnmId(ctx context.Context, anmUniId string) ([]*data.Collection, error)
+	// ListCollectionByKeywords 通过关键词查找collection信息,值得注意的是这些collection的信息可能会有问题。
+	ListCollectionByKeywords(ctx context.Context, keywords string) ([]*data.Collection, error)
 
 	// CreateMission 添加collection到监控列表中，进行同步更新
 	CreateMission(ctx context.Context, collectionId string) error

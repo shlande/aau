@@ -95,13 +95,23 @@ func (c *Collection) IsMissing() bool {
 	return false
 }
 
+// FIXME：如果资源找到了两季度，这时候metadata可能会重复，collection也会出现问题
+// 最好的办法还是在animation处进行修改
 func (c *Collection) String() string {
-	return fmt.Sprintf("%v-%v", c.Metadata, c.Animation.Id)
+	var anmId string
+	if c.Animation != nil {
+		anmId = c.Animation.Id
+	}
+	return fmt.Sprintf("%v-%v", c.Metadata, anmId)
 }
 
 func (c *Collection) Id() string {
 	data := md5.Sum([]byte(c.String()))
-	return hex.EncodeToString(data[:])
+	id := hex.EncodeToString(data[:])
+	if c.Animation == nil {
+		id = "temp-" + id
+	}
+	return id
 }
 
 func (c *Collection) GetLatest() *Source {

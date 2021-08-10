@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"github.com/shlande/dmhy-rss/pkg/controller/subscriber"
@@ -10,7 +10,7 @@ type SubscribeConfig struct {
 	RecordPath string
 }
 
-func buildSubscribe(config SubscribeConfig) subscriber.Subscriber {
+func BuildSubscriber(config SubscribeConfig) subscriber.Subscriber {
 	multi := &subscriber.Multi{}
 	multi.Combine(log.NewLog())
 	if len(config.RecordPath) != 0 {

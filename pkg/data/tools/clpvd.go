@@ -6,6 +6,7 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/data/parser"
 	"github.com/shlande/dmhy-rss/pkg/data/source"
 	"github.com/shlande/dmhy-rss/third_part/workqueue"
+	"github.com/sirupsen/logrus"
 	"log"
 	"time"
 )
@@ -39,7 +40,19 @@ func (c *CollectionProvider) gc() {
 }
 
 func (c *CollectionProvider) Search(ctx context.Context, animation *data.Animation) ([]*data.Collection, error) {
-	infos, err := c.pvd.Keywords(ctx, animation.Translated)
+	cls, err := c.search(ctx, animation.GetKeywords(), animation)
+	if err != nil {
+		logrus.Error(err)
+		return nil, err
+	}
+	for _, v := range cls {
+		c.addToCache(v)
+	}
+	return cls, err
+}
+
+func (c *CollectionProvider) search(ctx context.Context, keywords string, animation *data.Animation) ([]*data.Collection, error) {
+	infos, err := c.pvd.Keywords(ctx, keywords)
 	if err != nil && err != data.ErrEpisodeExist {
 		return nil, err
 	}
@@ -58,10 +71,12 @@ func (c *CollectionProvider) Search(ctx context.Context, animation *data.Animati
 		})
 	}
 	cls := Classify(animation, sources)
-	for _, v := range cls {
-		c.addToCache(v)
-	}
 	return cls, nil
+}
+
+// Keywords 通过keywords查找的时候，collection中的animation会是nil，而且该collection无法用于加载任务
+func (c *CollectionProvider) Keywords(ctx context.Context, keywords string) ([]*data.Collection, error) {
+	return c.search(ctx, keywords, nil)
 }
 
 func (c *CollectionProvider) addToCache(collection *data.Collection) {

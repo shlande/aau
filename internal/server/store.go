@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"github.com/shlande/dmhy-rss/pkg/controller/store"
@@ -9,7 +9,7 @@ type StoreConfig struct {
 	Path string
 }
 
-func buildStore(config StoreConfig) store.Interface {
+func BuildStore(config StoreConfig) store.Interface {
 	if len(config.Path) == 0 {
 		config.Path = "./data.db"
 	}

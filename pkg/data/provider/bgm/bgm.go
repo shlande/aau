@@ -19,7 +19,6 @@ import (
 func New(animationInterface store.AnimationInterface) *Provider {
 	p := &Provider{
 		data:               make(map[string]*bgmDataItem),
-		cache:              make(map[string]*data.Animation),
 		AnimationInterface: animationInterface,
 	}
 	p.updateData()
@@ -38,7 +37,7 @@ type Provider struct {
 	lastUpdate time.Time
 	ld         []*bgmDataItem
 	data       map[string]*bgmDataItem
-	cache      map[string]*data.Animation
+	cache      map[string]*time.Time
 }
 
 func (p *Provider) Session(_ context.Context, year int, session provider.Session) (anms []*data.Animation, err error) {
@@ -79,38 +78,18 @@ func (p *Provider) Search(ctx context.Context, keywords string) (anms []*data.An
 	return anms, nil
 }
 
-func (p *Provider) cacheAnm(anms ...*data.Animation) {
-	for _, v := range anms {
-		p.cache[v.Id] = v
-		if p.AnimationInterface != nil {
-			p.AnimationInterface.Save(v)
-		}
-
-	}
-}
-
-func (p *Provider) getCache(uinId string) *data.Animation {
-	var err error
-	anm := p.cache[uinId]
-	if anm == nil && p.AnimationInterface != nil {
-		anm, err = p.AnimationInterface.Get(uinId)
-		if err != nil {
-			return nil
-		}
-		p.cache[uinId] = anm
-	}
-	return anm
-}
-
 func (p *Provider) getBgmData(id string) *bgmDataItem {
 	return p.data[id]
 }
 
 func (p *Provider) get(uniId string) (*data.Animation, error) {
-	anm := p.getCache(uniId)
+	anm, err := p.AnimationInterface.Get(uniId)
+	if err != nil && err != store.ErrNotFound {
+		return nil, err
+	}
 	// 如果这个词条以前没有查过
 	bgmId := getRawBangumiId(uniId)
-	if anm == nil {
+	if err == store.ErrNotFound {
 		bdi := p.getBgmData(bgmId)
 		if bdi == nil {
 			logrus.Errorf("bgmdata缺少信息 bgmId:%v", bgmId)
@@ -125,12 +104,15 @@ func (p *Provider) get(uniId string) (*data.Animation, error) {
 			}
 			return anm, nil
 		}
+		// 整合悉信息，生成animation
 		dt, bk, err := bdi.findAir()
 		if err != nil {
 			logrus.Error(err)
 		}
 		anm = s.generate(dt, bk, bdi.Type)
-		p.cacheAnm(anm)
+		if err := p.AnimationInterface.Save(anm); err != nil {
+			logrus.Error(err)
+		}
 		return anm, nil
 	}
 	return anm, nil

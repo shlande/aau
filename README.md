@@ -122,5 +122,8 @@ controller支持一下几种操作：
 
 --- 8.10 ---
 
-- [ ] animation支持自定义查找时关键词。
+- [x] animation支持自定义查找时关键词。
+- [x] 允许直接通过keywords查找collection预览结果
 - [ ] 规划download grpc接口。
+- [ ] mission验证数据的有效性，如果是无效的需要用户补充数据
+

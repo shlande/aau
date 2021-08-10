@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/shlande/dmhy-rss/pkg/controller/store"
 	"github.com/shlande/dmhy-rss/pkg/data"
 	"github.com/shlande/dmhy-rss/pkg/data/provider"
+	"github.com/shlande/dmhy-rss/pkg/data/tools"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,6 +21,36 @@ type Server struct {
 	manual *manual.Manual
 
 	pvd provider.Provider
+
+	clpd *tools.CollectionProvider
+}
+
+func (s *Server) Run(ctx context.Context) {
+	go s.manager.Run(ctx)
+}
+
+func (s *Server) SetAnimationKeywords(ctx context.Context, anmId, keywords string) error {
+	anm, err := s.store.Animation().Get(anmId)
+	if err != nil {
+		return err
+	}
+	err = anm.SetKeywords(keywords)
+	if err != nil {
+		return err
+	}
+	return s.store.Animation().Save(anm)
+}
+
+func (s *Server) ListCollectionByAnmId(ctx context.Context, anmUniId string) ([]*data.Collection, error) {
+	anm, err := s.pvd.Get(ctx, anmUniId)
+	if err != nil {
+		return nil, err
+	}
+	return s.manual.Search(ctx, anm)
+}
+
+func (s *Server) ListCollectionByKeywords(ctx context.Context, keywords string) ([]*data.Collection, error) {
+	return s.clpd.Keywords(ctx, keywords)
 }
 
 func (s *Server) SearchAnimation(ctx context.Context, keywords string) ([]*data.Animation, error) {
@@ -41,14 +72,6 @@ func (s *Server) GetAnimationBySession(ctx context.Context, year int, session in
 		return nil, errors.New("无效的session")
 	}
 	return s.pvd.Session(ctx, year, ss)
-}
-
-func (s *Server) ListCollection(ctx context.Context, anmUniId string) ([]*data.Collection, error) {
-	anm, err := s.pvd.Get(ctx, anmUniId)
-	if err != nil {
-		return nil, err
-	}
-	return s.manual.Search(ctx, anm)
 }
 
 func (s *Server) CreateMission(_ context.Context, collectionId string) error {

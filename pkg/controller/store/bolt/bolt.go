@@ -135,11 +135,7 @@ func getAllSource(tx *bolt.Tx, collectionKey string) (ss []*data.Source, err err
 }
 
 func setSource(tx *bolt.Tx, collectionKey string, source *data.Source) (err error) {
-	bk, err := tx.CreateBucketIfNotExists(getResourceBucketKey(collectionKey))
-	if err != nil {
-		return err
-	}
-	return bk.Put(getResourceKey(source), mustEncode(source))
+	return tx.Bucket(getResourceBucketKey(collectionKey)).Put(getResourceKey(source), mustEncode(source))
 }
 
 // Mission 任务执持久化存储
@@ -238,6 +234,13 @@ func (c *collection) Save(collection *data.Collection) (err error) {
 	}()
 
 	err = getCollectionSummary(tx, collection.Id(), &collectionSummary{})
+
+	// 创建resource buckt
+	_, err = tx.CreateBucketIfNotExists(getResourceBucketKey(collection.Id()))
+	if err != nil {
+		return err
+	}
+
 	if err != nil {
 		// 首次插入的话就把source也放入
 		if err == store.ErrNotFound {
@@ -385,6 +388,10 @@ func (m ms) GetAll(active bool) (mss []*mission.Mission, err error) {
 	for _, v := range keys {
 		ms, err := m.Get(v)
 		if err != nil {
+			if err == store.ErrNotFound {
+				logrus.Errorln("任务数据丢失，可能需要手动删除后重新添加任务:", v)
+				continue
+			}
 			return nil, err
 		}
 		// 选择出活跃的或者不活跃的任务

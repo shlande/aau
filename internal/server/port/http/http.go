@@ -36,7 +36,7 @@ func BuildHandler(server port.Api) http.Handler {
 		})
 	})
 
-	router.Path("/search/{keywords}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Path("/search/animation/{keywords}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		keywords := mux.Vars(request)["keywords"]
 		if len(keywords) < 3 {
 			err := fmt.Errorf("%w %v", ErrBadRequest, "关键词长度必须大于三")
@@ -49,6 +49,25 @@ func BuildHandler(server port.Api) http.Handler {
 			return
 		}
 		write(writer, res)
+	})
+
+	router.Path("/search/collection/{keywords}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		keywords := mux.Vars(request)["keywords"]
+		if len(keywords) < 3 {
+			err := fmt.Errorf("%w %v", ErrBadRequest, "关键词长度必须大于三")
+			write(writer, err)
+			return
+		}
+		res, err := server.ListCollectionByKeywords(request.Context(), keywords)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		var resp = make([]*collectionSummary, 0, len(res))
+		for _, v := range res {
+			resp = append(resp, newCollectionSummary(v))
+		}
+		write(writer, resp)
 	})
 
 	router.Path("/search/session/{year}/{session}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -67,9 +86,14 @@ func BuildHandler(server port.Api) http.Handler {
 		write(writer, anm)
 	})
 
-	router.Path("/animation/list/{animationId}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Path("/animation/{animationId}/keywords/{keywords}").Methods(http.MethodPut).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		keywords, anmId := mux.Vars(request)["keywords"], mux.Vars(request)["animationId"]
+		write(writer, server.SetAnimationKeywords(request.Context(), anmId, keywords))
+	})
+
+	router.Path("/collection/list/{animationId}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		anmId := mux.Vars(request)["animationId"]
-		cls, err := server.ListCollection(request.Context(), anmId)
+		cls, err := server.ListCollectionByAnmId(request.Context(), anmId)
 		if err != nil {
 			write(writer, err)
 			return
@@ -79,6 +103,16 @@ func BuildHandler(server port.Api) http.Handler {
 			clss = append(clss, newCollectionSummary(v))
 		}
 		write(writer, clss)
+	})
+
+	router.Path("/collection/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		clId := mux.Vars(request)["id"]
+		cl, err := server.GetCollection(request.Context(), clId)
+		if err != nil {
+			write(writer, err)
+			return
+		}
+		write(writer, newCollectionSummary(cl))
 	})
 
 	router.Path("/mission/create/{collectionId}").Methods(http.MethodGet).HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
@@ -111,7 +145,7 @@ func BuildHandler(server port.Api) http.Handler {
 		return
 	})
 
-	router.Path("/mission/log/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Path("/mission/{id}/log").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		msId := mux.Vars(request)["id"]
 		logs, err := server.GetLogs(request.Context(), msId)
 		if err != nil {
@@ -119,16 +153,6 @@ func BuildHandler(server port.Api) http.Handler {
 			return
 		}
 		write(writer, logs)
-	})
-
-	router.Path("/collection/{id}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		clId := mux.Vars(request)["id"]
-		cl, err := server.GetCollection(request.Context(), clId)
-		if err != nil {
-			write(writer, err)
-			return
-		}
-		write(writer, newCollectionSummary(cl))
 	})
 
 	return router
