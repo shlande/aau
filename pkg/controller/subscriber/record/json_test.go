@@ -6,7 +6,7 @@ import (
 )
 
 func TestJsonKV_Set(t *testing.T) {
-	data := &record{Name: "lafgewga\"", Url: "fdalief", Episode: 10, Time: time.Now()}
+	data := &record{Name: "lafgewg&&a\"", Url: "fdalief", Episode: 10, Time: time.Now()}
 	key := "sfe{sae"
 	tests := []struct {
 		name string

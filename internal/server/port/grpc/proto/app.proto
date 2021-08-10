@@ -1,6 +1,7 @@
 syntax = "proto3";
-package updater;
-option go_package = ".;updater";
+package tutorial;
+
+option go_package="proto";
 
 service Server {
   rpc Search(SearchRequest) returns (SearchResponse) {}

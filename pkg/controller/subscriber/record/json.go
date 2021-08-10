@@ -40,6 +40,7 @@ type JsonKV struct {
 	empty bool
 	chunk *bytes.Buffer
 	sync.Mutex
+
 	io.WriteSeeker
 }
 
@@ -49,7 +50,7 @@ func (r *JsonKV) Set(key string, data interface{}) (err error) {
 	case []byte:
 		dt = temp
 	default:
-		dt, err = json.Marshal(data)
+		dt, err = r.marshal(data)
 		if err != nil {
 			return err
 		}
@@ -85,4 +86,13 @@ func (r *JsonKV) append(key string, data []byte) (err error) {
 		return err
 	}
 	return nil
+}
+
+func (r *JsonKV) marshal(data interface{}) (bt []byte, err error) {
+	byteBuf := bytes.NewBuffer([]byte{})
+	encoder := json.NewEncoder(byteBuf)
+	encoder.SetEscapeHTML(false)
+	err = encoder.Encode(data)
+	bt = byteBuf.Bytes()
+	return
 }
