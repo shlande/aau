@@ -39,7 +39,7 @@ func (p *path) Path(collection *data.Collection) string {
 	} else {
 		m = strconv.Itoa(s)
 	}
-	return pt.Join(p.base, fmt.Sprintf("%v-%v-%v-%v", y, m, collection.Translated, collection.Fansub))
+	return pt.Join(p.base, fmt.Sprintf("%v-%v-%v%v", y, m, collection.Translated, collection.Fansub))
 }
 
 func (p *path) Tag(resource *data.Collection) string {
