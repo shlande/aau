@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/shlande/dmhy-rss/internal/server/port"
+	"github.com/shlande/dmhy-rss/pkg/controller/mission"
 	"github.com/shlande/dmhy-rss/pkg/data"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -141,7 +142,11 @@ func BuildHandler(server port.Api) http.Handler {
 			write(writer, err)
 			return
 		}
-		write(writer, ms)
+		var mss = make([]*missionSummary, 0, len(ms))
+		for _, v := range ms {
+			mss = append(mss, newMissionSummary(v))
+		}
+		write(writer, mss)
 		return
 	})
 
@@ -159,8 +164,8 @@ func BuildHandler(server port.Api) http.Handler {
 }
 
 type collectionSummary struct {
-	Id string
-	data.Metadata
+	Id       string
+	Metadata *metadata
 
 	// Collection 的信息
 	Latest     int
@@ -169,16 +174,48 @@ type collectionSummary struct {
 	Items []*data.Source
 }
 
-type missionSummary struct {
-}
-
 func newCollectionSummary(collection *data.Collection) *collectionSummary {
 	return &collectionSummary{
 		Id:         collection.Id(),
-		Metadata:   collection.Metadata,
+		Metadata:   newMetadata(&collection.Metadata),
 		Latest:     collection.Latest,
 		LastUpdate: collection.LastUpdate,
 		Items:      collection.Items,
+	}
+}
+
+type missionSummary struct {
+	*collectionSummary
+
+	LastUpdate time.Time
+	SkipTime   int
+	Status     string
+}
+
+func newMissionSummary(mission *mission.Mission) *missionSummary {
+	return &missionSummary{
+		collectionSummary: newCollectionSummary(mission.Collection),
+		LastUpdate:        mission.LastUpdate,
+		SkipTime:          mission.SkipTime,
+		Status:            mission.Status.String(),
+	}
+}
+
+type metadata struct {
+	Fansub   []string
+	Quality  string
+	Type     string
+	Language string
+	SubType  string
+}
+
+func newMetadata(md *data.Metadata) *metadata {
+	return &metadata{
+		Fansub:   md.Fansub,
+		Quality:  md.Quality.String(),
+		Type:     md.Type.String(),
+		Language: md.Language.String(),
+		SubType:  md.SubType.String(),
 	}
 }
 
