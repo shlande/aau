@@ -164,8 +164,11 @@ func BuildHandler(server port.Api) http.Handler {
 }
 
 type collectionSummary struct {
-	Id       string
-	Metadata *metadata
+	Id          string
+	Name        string
+	Translated  string
+	AnimationId string
+	Metadata    *metadata
 
 	// Collection 的信息
 	Latest     int
@@ -176,11 +179,14 @@ type collectionSummary struct {
 
 func newCollectionSummary(collection *data.Collection) *collectionSummary {
 	return &collectionSummary{
-		Id:         collection.Id(),
-		Metadata:   newMetadata(&collection.Metadata),
-		Latest:     collection.Latest,
-		LastUpdate: collection.LastUpdate,
-		Items:      collection.Items,
+		Id:          collection.Id(),
+		AnimationId: collection.Animation.Id,
+		Name:        collection.Name,
+		Translated:  collection.Translated,
+		Metadata:    newMetadata(&collection.Metadata),
+		Latest:      collection.Latest,
+		LastUpdate:  collection.LastUpdate,
+		Items:       collection.Items,
 	}
 }
 
