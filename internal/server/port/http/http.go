@@ -87,7 +87,7 @@ func BuildHandler(server port.Api) http.Handler {
 		write(writer, anm)
 	})
 
-	router.Path("/animation/{animationId}/keywords/{keywords}").Methods(http.MethodPut).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Path("/animation/{animationId}/keywords/{keywords}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		keywords, anmId := mux.Vars(request)["keywords"], mux.Vars(request)["animationId"]
 		write(writer, server.SetAnimationKeywords(request.Context(), anmId, keywords))
 	})
@@ -121,7 +121,7 @@ func BuildHandler(server port.Api) http.Handler {
 		write(w, server.CreateMission(request.Context(), id))
 	})
 
-	router.Path("/mission/all/{status}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Path("/mission/list/{status}").Methods(http.MethodGet).HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var err error
 		status := mux.Vars(request)["status"]
 		var active, all bool
