@@ -67,6 +67,10 @@ type Bolt struct {
 	*bolt.DB
 }
 
+func (b *Bolt) Resource() store.ResourceInterface {
+	return rs{b}
+}
+
 func (b *Bolt) Collection() store.CollectionInterface {
 	return &collection{b}
 }
@@ -531,4 +535,30 @@ func (p p) GetPinned(active interface{}) (anms []*data.Animation, err error) {
 		return nil
 	})
 	return anms, err
+}
+
+type rs struct {
+	*Bolt
+}
+
+func (r rs) Save(collectionId string, source *data.Source) error {
+	tx, err := r.DB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() { err = r.cleanup(tx, err) }()
+
+	return setSource(tx, collectionId, source)
+}
+
+func (r rs) GetAll(collectionId string) (ss []*data.Source, err error) {
+	err = r.DB.View(func(tx *bolt.Tx) error {
+		ss, err = getAllSource(tx, collectionId)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return
 }

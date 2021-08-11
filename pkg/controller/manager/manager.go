@@ -18,6 +18,7 @@ func NewManager(provider *tools.CollectionProvider,
 	sb subscriber.Subscriber,
 	pm store.MissionInterface,
 	pc store.CollectionInterface,
+	ps store.ResourceInterface,
 	pl store.LogInterface) *Manager {
 	m := &Manager{
 		msq:                 workqueue.NewDelayingQueue(),
@@ -25,6 +26,7 @@ func NewManager(provider *tools.CollectionProvider,
 		CollectionProvider:  provider,
 		MissionInterface:    pm,
 		CollectionInterface: pc,
+		ResourceInterface:   ps,
 		LogInterface:        pl,
 		Subscriber:          sb,
 		addMsChan:           make(chan *mission.Mission),
@@ -62,6 +64,7 @@ type Manager struct {
 	store.MissionInterface
 	store.CollectionInterface
 	store.LogInterface
+	store.ResourceInterface
 
 	shutdown chan struct{}
 
@@ -206,7 +209,7 @@ func (m *Manager) done(ms *mission.Mission, val interface{}) {
 	// 获取日志，更新mission状态
 	log := ms.Next(val)
 	logrus.Print(log)
-	if log.Action == mission.UpdateSuccess {
+	if log.Action == mission.UpdateSuccess || log.Action == mission.Finished {
 		// 发布事件
 		for _, v := range val.([]*data.Source) {
 			if m.Subscriber != nil {
@@ -217,6 +220,12 @@ func (m *Manager) done(ms *mission.Mission, val interface{}) {
 		err := m.CollectionInterface.Save(ms.Collection)
 		if err != nil {
 			logrus.Errorln("无法保存collection：", err)
+		}
+		for _, v := range val.([]*data.Source) {
+			err := m.ResourceInterface.Save(ms.Collection.Id(), v)
+			if err != nil {
+				logrus.Errorln("无法保存collection：", err)
+			}
 		}
 	}
 

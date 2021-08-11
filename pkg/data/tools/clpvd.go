@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"github.com/shlande/dmhy-rss/pkg/controller/store"
 	"github.com/shlande/dmhy-rss/pkg/data"
 	"github.com/shlande/dmhy-rss/pkg/data/parser"
 	"github.com/shlande/dmhy-rss/pkg/data/source"
@@ -26,6 +27,7 @@ type CollectionProvider struct {
 	gcq    workqueue.DelayingInterface
 	parser parser.Parser
 	pvd    source.Provider
+	store  store.CollectionInterface
 	cache  map[string]*data.Collection
 }
 

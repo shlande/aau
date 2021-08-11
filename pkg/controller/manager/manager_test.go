@@ -32,7 +32,7 @@ var ms = mission.NewMission(
 
 func TestTracking(t *testing.T) {
 	p := memory.New()
-	manager := NewManager(tools.NewCollectionProvider(parser.New(), dmhy.NewProvider()), nil, p.Mission(), p.Collection(), p.Log())
+	manager := NewManager(tools.NewCollectionProvider(parser.New(), dmhy.NewProvider()), nil, p.Mission(), p.Collection(), p.Resource(), p.Log())
 
 	// 一次更新，应该是等待状态
 	manager.update(ms)
@@ -59,7 +59,7 @@ func TestTracking(t *testing.T) {
 
 func TestOnceCollect(t *testing.T) {
 	p := memory.New()
-	manager := NewManager(tools.NewCollectionProvider(parser.New(), dmhy.NewProvider()), nil, p.Mission(), p.Collection(), p.Log())
+	manager := NewManager(tools.NewCollectionProvider(parser.New(), dmhy.NewProvider()), nil, p.Mission(), p.Collection(), p.Resource(), p.Log())
 
 	// 一次更新，应该就已经是完成状态
 	manager.update(ms)

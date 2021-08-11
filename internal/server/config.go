@@ -27,12 +27,12 @@ func BuildServer(config Config) *Server {
 	sub := BuildSubscriber(config.SubscribeConfig)
 	anmProvider := bgm.New(store.Animation())
 	clp := tools.NewCollectionProvider(parser.New(), dmhy.NewProvider())
-	manager := manager.NewManager(clp, sub, store.Mission(), store.Collection(), store.Log())
+	manager := manager.NewManager(clp, sub, store.Mission(), store.Collection(), store.Resource(), store.Log())
 
 	return &Server{
 		store:   store,
 		manager: manager,
-		manual:  manual.New(manager.AddChan(), clp),
+		manual:  manual.New(manager.AddChan(), clp, store.Collection()),
 		pvd:     anmProvider,
 		clpd:    clp,
 	}

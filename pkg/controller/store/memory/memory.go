@@ -20,6 +20,10 @@ type memory struct {
 	mss  map[string]*mission.Mission
 }
 
+func (s memory) Resource() store.ResourceInterface {
+	return r(s)
+}
+
 func (s memory) Log() store.LogInterface {
 	return l(s)
 }
@@ -126,5 +130,15 @@ func (p p) IsFinish(animation *data.Animation) (bool, error) {
 }
 
 func (p p) GetPinned(active interface{}) ([]*data.Animation, error) {
+	return nil, nil
+}
+
+type r memory
+
+func (r r) Save(collectionId string, source *data.Source) error {
+	return nil
+}
+
+func (r r) GetAll(collectionId string) ([]*data.Source, error) {
 	return nil, nil
 }

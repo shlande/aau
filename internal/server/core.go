@@ -102,6 +102,6 @@ func (s *Server) GetLogs(_ context.Context, missionId string) ([]*mission.Log, e
 	return s.store.Log().GetAll(missionId)
 }
 
-func (s *Server) GetCollection(_ context.Context, collectionId string) (*data.Collection, error) {
-	return s.manual.Get(collectionId), nil
+func (s *Server) GetCollection(ctx context.Context, collectionId string) (*data.Collection, error) {
+	return s.manual.Get(ctx, collectionId)
 }

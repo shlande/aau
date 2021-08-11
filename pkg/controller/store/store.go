@@ -9,6 +9,7 @@ import (
 type Interface interface {
 	Collection() CollectionInterface
 	Mission() MissionInterface
+	Resource() ResourceInterface
 	Log() LogInterface
 	Animation() AnimationInterface
 	Pin() PinInterface
@@ -19,6 +20,11 @@ type CollectionInterface interface {
 	Save(collection *data.Collection) error
 	Get(id string) (*data.Collection, error)
 	GetAll() ([]*data.Collection, error)
+}
+
+type ResourceInterface interface {
+	Save(collectionId string, source *data.Source) error
+	GetAll(collectionId string) ([]*data.Source, error)
 }
 
 type MissionInterface interface {
