@@ -83,10 +83,17 @@ func (c *Collection) Has(item *Source) bool {
 }
 
 func (c *Collection) IsFull() bool {
+	// 如果collection的类型是full，那么只有一个item也应该是收集完成了
+	if c.Type == Full {
+		return len(c.Items) == 1
+	}
 	return len(c.Items) == c.TotalEpisodes
 }
 
 func (c *Collection) IsMissing() bool {
+	if c.Type == Full {
+		return len(c.Items) == 1
+	}
 	for i, v := range c.Items {
 		if i+1 != v.Episode {
 			return true
