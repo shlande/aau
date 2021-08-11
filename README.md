@@ -136,8 +136,9 @@ controller支持一下几种操作：
 
 - [ ] 修改已有的bgm开源前端接入系统
 - [ ] 整理api
-- [ ] 添加grpc-remote-subscriber
+- [x] 添加grpc-remote-subscriber
 - [ ] 考虑接入原来系统
+- [ ] 确定规范：animationType/resourceType/subtype
 
 --- long term---
 

@@ -1,0 +1,53 @@
+syntax = "proto3";
+option go_package=".;remote";
+
+service Subscriber {
+  rpc AddedStream(ConsumeRequest) returns (stream AddedResponse) {}
+  rpc CreatedStream(ConsumeRequest) returns (stream CreatedResponse) {}
+}
+
+// 请求消费事件
+// TODO:通过id从上次消费位置继续消费
+message ConsumeRequest {
+  string id = 1;
+}
+
+message AddedResponse {
+  Collection collection = 1;
+  Resource resource = 2;
+}
+
+message CreatedResponse {
+  Collection collection = 1;
+}
+
+message Animation {
+  string id = 1;
+  string name = 2;
+  string translated = 3;
+  int64 airDate = 4;
+  int64 total_episode = 5;
+  string category = 6;
+}
+
+message Collection {
+  Animation animation = 1;
+  // Collection 的信息
+  int64 latest = 2;
+}
+
+message Resource {
+  string name = 1;
+  int64 create_time = 2;
+  string download_url = 3;
+  int64 episode = 4;
+  Metadata metadata = 5;
+}
+
+message Metadata {
+  repeated string fansub = 1;
+  int64 quality = 2;
+  int64 language = 3;
+  int64 subtype = 4;
+  string type = 5;
+}
